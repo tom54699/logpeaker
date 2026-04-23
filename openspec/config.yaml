@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  Project: LogPeak
+  Product goal: Build a VS Code extension for low-profile TXT reading inside the bottom panel.
+  UX direction: Must feel like a code viewer / log viewer / output panel, not a novel reader.
+  Placement: Bottom Panel only for the early phases. Do not design this as an editor tab or status bar tool first.
+  Tech stack: TypeScript, VS Code Extension API, Webview View.
+  Discussion style: We work in very small phases. Discuss one phase at a time, keep in-scope and out-of-scope explicit.
+  Documentation source of truth: docs/project/overview.md, docs/project/discussion-model.md, docs/project/roadmap.md, docs/business/project-context.md.
+  Quality bar: New functionality should come with relatively hard, repeatable tests. Relevant tests must pass before git push.
+  Current direction: Phase 0 is only for validating the bottom panel shell and visual direction. Do not prematurely include later features.
+
+rules:
+  proposal:
+    - Keep the change narrowly scoped to a single phase or single concrete capability.
+    - Always include explicit in-scope and out-of-scope sections.
+    - Preserve the disguise direction: output/log-like, not terminal-like, not novel-reader-like.
+  design:
+    - Prefer minimal architecture that is enough for the current phase.
+    - Call out accidental complexity and defer future-only ideas.
+  tasks:
+    - Break work into small, reviewable steps.
+    - Include testing tasks when behavior changes.
+    - Avoid bundling multiple future phases into one task list.
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours

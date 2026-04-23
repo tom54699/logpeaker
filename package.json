@@ -1,0 +1,47 @@
+{
+  "name": "logpeak",
+  "displayName": "Log Peak",
+  "description": "A low-profile TXT reader shell for the VS Code bottom panel.",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:logPeak.panelView"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "logPeak",
+          "title": "Log Peak",
+          "icon": "media/logpeak.svg"
+        }
+      ]
+    },
+    "views": {
+      "logPeak": [
+        {
+          "id": "logPeak.panelView",
+          "name": "Log Peak",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node --test tests/**/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,92 @@
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vscode-panel-border) 28%, transparent),
+      transparent 38px
+    ),
+    var(--vscode-editor-background);
+}
+
+.shell__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-descriptionForeground);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.shell__title {
+  color: var(--vscode-editor-foreground);
+}
+
+.shell__meta {
+  white-space: nowrap;
+}
+
+.shell__rows {
+  padding: 8px 0 12px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 42px 48px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 3px 12px;
+  line-height: 1.55;
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--vscode-editorHoverWidget-background) 35%, transparent);
+}
+
+.row__index {
+  color: var(--vscode-editorLineNumber-foreground);
+  text-align: right;
+}
+
+.row__label {
+  color: var(--vscode-textLink-foreground);
+}
+
+.row__content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.row--warn .row__label {
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.row--code .row__label {
+  color: var(--vscode-symbolIcon-functionForeground, var(--vscode-terminal-ansiCyan));
+}
+
+.row--code .row__content {
+  color: color-mix(in srgb, var(--vscode-editor-foreground) 92%, var(--vscode-terminal-ansiGreen));
+}
