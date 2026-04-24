@@ -29,7 +29,7 @@ LogPeak
 2. 使用者手動選取本機 `.txt` 檔案
 3. 內容以類似程式碼或 log 的樣式顯示
 4. 使用者在不突兀的情況下持續閱讀
-5. 後續版本再逐步加入閱讀位置保存與老闆鍵能力
+5. 目前版本已可記住上次檔案與接近原本的閱讀位置，後續版本再逐步加入老闆鍵能力
 
 關鍵原則：
 
@@ -50,6 +50,7 @@ LogPeak
 - `Phase 1` 先只支援 UTF-8 / UTF-8 with BOM
 - `Phase 1` 開檔入口先放在 panel 內容內
 - `Phase 2` 以 `Output / build log` 為主視覺基準，混入少量 `code viewer` 節奏
+- `Phase 3` 以閱讀狀態保存為主，先處理工作區內的檔案與位置恢復
 
 目前尚不在第一步定稿內：
 
@@ -69,7 +70,7 @@ LogPeak
 | Webview 靜態假內容 | 驗證容器與視覺方向 | done |
 | 手動開啟 TXT | 讀取本機文字內容 | done |
 | 類 code / log 顯示 | 建立偽裝感 | done |
-| 記住閱讀位置 | 提升連續閱讀體驗 | planned |
+| 記住閱讀位置 | 提升連續閱讀體驗 | done |
 | 老闆鍵 | 快速切換到假工作畫面 | future |
 | Stealth / Normal / Focus | 調整隱蔽程度 | future |
 
@@ -89,7 +90,6 @@ LogPeak
 
 ## 待確認問題
 
-- `Phase 3` 是否就加入閱讀位置保存
 - 後續是否同時提供 command-based 檔案路徑輸入
 - 老闆鍵應在哪個 milestone 才開始設計
 - `Log Peak` 的 view title 未來是否開放自訂
@@ -129,6 +129,15 @@ LogPeak
 - 後續可考慮讓 toolbar 在非 hover 狀態下更像 log/header 資訊，滑鼠移入後才顯示真實功能控制
 - `Phase 2` 已 archive OpenSpec change：`2026-04-24-phase-2-panel-disguise-language`
 - `Phase 2` 主 spec 已同步到 `openspec/specs/panel-disguise-language/spec.md`
+- `Phase 3` 目標是讓閱讀體驗有延續性，不用每次重新找位置
+- `Phase 3` 閱讀進度預設記在 `workspaceState`
+- `Phase 3` 第一版記錄欄位為 `fileUri`、`fileName`、`scrollTop`、`topLine`、`fileMtimeMs`
+- `Phase 3` 恢復時機採中間型：當 panel 被打開時自動恢復
+- `Phase 3` 儲存鏈路已改為綁定實際內容滾動容器，手動驗證可正常回到接近原位置
+- `Phase 3` 目前先維持現有保存頻率，後續若有體感或效能問題再另行收斂
+- 閱讀模式的固定 header / toolbar 先暫時移除，以保留閱讀空間；後續改以可縮合 chrome 另案處理
+- `Phase 3` 已 archive OpenSpec change：`2026-04-24-phase-3-restore-reading-session`
+- `Phase 3` 主 spec 已同步到 `openspec/specs/reading-session-restore/spec.md`
 
 ## 文件同步紀錄
 
@@ -148,3 +157,6 @@ LogPeak
 | 2026-04-24 | 補記 toolbar 未來可採 hover 前偽裝、hover 後顯示功能的方向 | Codex |
 | 2026-04-24 | 建立 `phase-2-panel-disguise-language` OpenSpec change 與 artifacts | Codex |
 | 2026-04-24 | 完成 `Phase 2` 實作與手動驗證，sync 到主 spec 並 archive | Codex |
+| 2026-04-24 | 同步 `Phase 3` 閱讀狀態保存的初步決議 | Codex |
+| 2026-04-24 | 建立 `phase-3-restore-reading-session` OpenSpec change 與 artifacts | Codex |
+| 2026-04-24 | 完成 `Phase 3` 實作與手動驗證，sync 到主 spec 並 archive | Codex |

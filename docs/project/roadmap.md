@@ -2,11 +2,7 @@
 
 ## Now
 
-目前沒有 active change。
-
-下一個建議討論階段：
-
-- `Phase 3: 閱讀狀態保存`
+- 無 active change
 
 ## Completed
 
@@ -70,13 +66,28 @@ OpenSpec 狀態：
 - 已 archive：`openspec/changes/archive/2026-04-24-phase-2-panel-disguise-language/`
 - 已 sync 至主 spec：`openspec/specs/panel-disguise-language/spec.md`
 
-## Later
-
 ### Phase 3: 閱讀狀態保存
 
 - 記住上次檔案
 - 記住上次閱讀位置
-- 重新開啟後恢復
+- 在打開 panel 時自動恢復
+- 儲存鏈路已修正為綁定實際內容滾動容器
+
+Phase 3 討論決議：
+
+- 目標是讓閱讀體驗有延續性，不用每次重新找位置
+- 閱讀進度預設記在 `workspaceState`
+- 第一版記錄欄位為 `fileUri`、`fileName`、`scrollTop`、`topLine`、`fileMtimeMs`
+- 恢復時機採中間型：不在 extension 啟動時主動搶畫面，但當 panel 被打開時自動恢復
+- 目前保存頻率先維持現況：滾動停下後節流保存，隱藏/unload 時再補存
+- 為保留閱讀空間，loaded 狀態的固定 header / toolbar 先暫時移除；後續改以可縮合 chrome 另案處理
+
+OpenSpec 狀態：
+
+- 已 archive：`openspec/changes/archive/2026-04-24-phase-3-restore-reading-session/`
+- 已 sync 至主 spec：`openspec/specs/reading-session-restore/spec.md`
+
+## Later
 
 ### Phase 4: 最小老闆鍵
 
@@ -89,6 +100,7 @@ OpenSpec 狀態：
 - 多種老闆鍵模板
 - Stealth / Normal / Focus
 - hover 淡化細節
+- 閱讀模式可縮合 chrome
 - toolbar 非 hover 偽裝、hover 後顯示真實功能
 - 較大檔案的效能優化
 - 更多編碼支援
@@ -96,7 +108,6 @@ OpenSpec 狀態：
 
 ## Open Questions
 
-- `Phase 3` 是否直接加入閱讀位置保存
 - 老闆鍵預設模板是否固定從 log 開始
 - 後續是否提供 command-based 檔案路徑輸入入口
 - `Log Peak` 的 view title 未來是否開放使用者自訂
