@@ -49,6 +49,7 @@ LogPeak
 - 視覺方向：偏 Output / Log Viewer，不偏 Terminal
 - `Phase 1` 先只支援 UTF-8 / UTF-8 with BOM
 - `Phase 1` 開檔入口先放在 panel 內容內
+- `Phase 2` 以 `Output / build log` 為主視覺基準，混入少量 `code viewer` 節奏
 
 目前尚不在第一步定稿內：
 
@@ -64,10 +65,10 @@ LogPeak
 
 | 功能 | 目的 | 狀態 |
 | --- | --- | --- |
-| 底部 Panel View | 讓閱讀器自然存在於 VS Code 底部區塊 | phase-0 |
-| Webview 靜態假內容 | 驗證容器與視覺方向 | phase-0 |
-| 手動開啟 TXT | 讀取本機文字內容 | planned |
-| 類 code / log 顯示 | 建立偽裝感 | planned |
+| 底部 Panel View | 讓閱讀器自然存在於 VS Code 底部區塊 | done |
+| Webview 靜態假內容 | 驗證容器與視覺方向 | done |
+| 手動開啟 TXT | 讀取本機文字內容 | done |
+| 類 code / log 顯示 | 建立偽裝感 | done |
 | 記住閱讀位置 | 提升連續閱讀體驗 | planned |
 | 老闆鍵 | 快速切換到假工作畫面 | future |
 | Stealth / Normal / Focus | 調整隱蔽程度 | future |
@@ -88,11 +89,10 @@ LogPeak
 
 ## 待確認問題
 
-- `Phase 0` 的 view title 是否固定為 `Log Peak`，或先同步規劃可自訂命名
-- `Phase 1` 是否就加入行號
-- `Phase 1` 是否就加入閱讀位置保存
-- `Phase 1` 是否同時提供 command-based 檔案路徑輸入
+- `Phase 3` 是否就加入閱讀位置保存
+- 後續是否同時提供 command-based 檔案路徑輸入
 - 老闆鍵應在哪個 milestone 才開始設計
+- `Log Peak` 的 view title 未來是否開放自訂
 - 本地 repo 與 GitHub remote 綁定時機
 
 ## 討論決議
@@ -104,10 +104,31 @@ LogPeak
 - 討論方式採階段式、小步前進，一次只收斂一個 phase
 - `Phase 0` 視覺方向偏 Output / Log Viewer
 - `Phase 0` 內容以 log 為主，可穿插少量 code
-- `Phase 0` 已建立 OpenSpec change：`phase-0-panel-shell`
+- `Phase 0` 已 archive OpenSpec change：`2026-04-24-phase-0-panel-shell`
+- `Phase 0` 主 spec 已同步到 `openspec/specs/panel-shell/spec.md`
 - `Phase 1` 先只支援 UTF-8 / UTF-8 with BOM
 - `Phase 1` 暫時不做檔案大小限制
 - `Phase 1` 開檔入口先從 panel 內容內開始驗證
+- `Phase 1` 已 archive OpenSpec change：`2026-04-24-phase-1-load-local-txt`
+- `Phase 1` 主 spec 已同步到 `openspec/specs/local-txt-loading/spec.md`
+- `Phase 1` 改為固定單一 webview shell，後續只以 message 更新狀態
+- `Phase 1` 手動驗證已通過，可視為完成
+- `Phase 2` 目標是讓已可用的 TXT panel 更像 VS Code 的 output / build log viewer，而不像閱讀器
+- `Phase 2` 主視覺基準採 `Output / build log`，次要參考採少量 `code viewer` 節奏
+- `Phase 2` 不走 `Terminal`、`Problems`、一般閱讀器語言
+- `Phase 2` 預設保留行號，先維持目前強度
+- `Phase 2` 保留 header meta 與工程感 toolbar
+- `Phase 2` row hover 可以存在，但要非常輕
+- `Phase 2` 分隔節奏只作為版面層次，不做章節判斷
+- `Phase 2` 前綴標記保留，但改成低頻率、混合型 log/source tag，不再整頁都是 `TXT`
+- `Phase 2` 顏色階層走克制路線
+- `Phase 2` 只定預設視覺語言，不做開關；但未來應保留設定化空間
+- `Phase 2` header 採混合型資訊結構，左側維持 `output :: log-peak.panel`，右側基準為 `utf-8 :: <file-name> :: ready`
+- `Phase 2` 前綴標記採每行顯示的混合型 tag，例如 `INFO`、`WARN`、`IO`、`CORE`、`TRACE`
+- `Phase 2` toolbar 保留極簡骨架，只保留目前必要元素，作為未來功能承載區
+- 後續可考慮讓 toolbar 在非 hover 狀態下更像 log/header 資訊，滑鼠移入後才顯示真實功能控制
+- `Phase 2` 已 archive OpenSpec change：`2026-04-24-phase-2-panel-disguise-language`
+- `Phase 2` 主 spec 已同步到 `openspec/specs/panel-disguise-language/spec.md`
 
 ## 文件同步紀錄
 
@@ -118,3 +139,12 @@ LogPeak
 | 2026-04-23 | 補充專案目標、階段方向與討論決議 | Codex |
 | 2026-04-23 | 建立 `phase-0-panel-shell` OpenSpec change 與 artifacts | Codex |
 | 2026-04-23 | 補充 `Phase 1` 初步決議：UTF-8、panel 內入口、先不限制檔案大小 | Codex |
+| 2026-04-23 | 建立 `phase-1-load-local-txt` OpenSpec change 與 artifacts | Codex |
+| 2026-04-24 | 完成 `Phase 1` 實作與手動驗證，補記固定 webview shell 的渲染策略 | Codex |
+| 2026-04-24 | 將 `phase-1-load-local-txt` sync 到主 spec 並 archive | Codex |
+| 2026-04-24 | 將 `phase-0-panel-shell` sync 到主 spec 並 archive | Codex |
+| 2026-04-24 | 同步 `Phase 2` 已定視覺方向與待確認問題 | Codex |
+| 2026-04-24 | 補記 `Phase 2` 的 header、tag 與 toolbar 基準 | Codex |
+| 2026-04-24 | 補記 toolbar 未來可採 hover 前偽裝、hover 後顯示功能的方向 | Codex |
+| 2026-04-24 | 建立 `phase-2-panel-disguise-language` OpenSpec change 與 artifacts | Codex |
+| 2026-04-24 | 完成 `Phase 2` 實作與手動驗證，sync 到主 spec 並 archive | Codex |

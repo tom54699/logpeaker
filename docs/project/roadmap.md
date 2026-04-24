@@ -2,33 +2,20 @@
 
 ## Now
 
+目前沒有 active change。
+
+下一個建議討論階段：
+
+- `Phase 3: 閱讀狀態保存`
+
+## Completed
+
 ### Phase 0: 容器成立
 
-目標：
-
-- 驗證 extension 是否能自然存在於 VS Code 底部 Panel
-
-範圍：
-
-- 建立 TypeScript VS Code Extension
-- 在底部 Panel 註冊 `Log Peak` view
-- 用 `WebviewViewProvider` 顯示靜態內容
-- 內容風格偏 output/log，夾少量 code
-- 跟隨目前 VS Code theme
-
-不包含：
-
-- 開檔
-- 記住閱讀位置
-- 老闆鍵
-- 模式切換
-
-OpenSpec 狀態：
-
-- 已建立 change：`openspec/changes/phase-0-panel-shell/`
-- proposal、design、specs、tasks 已建立，可進入 `/opsx:apply`
-
-## Later
+- 底部 Panel 容器已驗證
+- `Log Peak` view 已能自然出現在 panel 區
+- 已 archive：`openspec/changes/archive/2026-04-24-phase-0-panel-shell/`
+- 已 sync 至主 spec：`openspec/specs/panel-shell/spec.md`
 
 ### Phase 1: 能讀 TXT
 
@@ -36,20 +23,54 @@ OpenSpec 狀態：
 - 讀取並顯示內容
 - 基本捲動
 - 等寬字體
-- 先只支援 UTF-8 / UTF-8 with BOM
-- 開檔入口先放在 panel 內容裡
+- 只支援 UTF-8 / UTF-8 with BOM
+- 開檔入口放在 panel 內容裡
+- 維持固定 webview shell，狀態用 message 更新
+- 已完成手動驗證
 
 Phase 1 討論決議：
 
 - 暫時不做檔案大小限制
 - 開檔入口可以先做成 panel 內顯示
 - 指令帶入檔案路徑是可考慮方向，但先觀察 panel 內入口效果
+- 輕量列索引與 `TXT` 標記可先保留為視覺語言的一部分
+
+OpenSpec 狀態：
+
+- 已 archive：`openspec/changes/archive/2026-04-24-phase-1-load-local-txt/`
+- 已 sync 至主 spec：`openspec/specs/local-txt-loading/spec.md`
 
 ### Phase 2: 偽裝感成立
 
-- 行號
-- 更像 code / log / output 的版面
-- 視覺細節微調
+- Loaded state 更像 output / build log viewer
+- header 採混合型資訊結構
+- tag 改為混合型 log/source 語言
+- toolbar 收斂為極簡骨架
+- 大 TXT 滾動體感已做一輪性能修正
+
+Phase 2 討論決議：
+
+- 目標是讓已可用的 TXT panel 更像 VS Code 的 output / build log viewer，而不像閱讀器
+- 主視覺基準採 `Output / build log`
+- 次要參考採少量 `code viewer` 節奏
+- 明確不走 `Terminal`、`Problems`、一般閱讀器語言
+- 預設保留行號，先維持目前強度
+- 保留 header meta 與工程感 toolbar
+- row hover 可以存在，但要非常輕
+- 分隔節奏只作為版面層次，不做章節判斷
+- 顏色階層走克制路線，不追求花色
+- 本階段只定預設視覺語言，不做開關；但未來應保留設定化空間
+- header 採混合型資訊結構，左側偏 output panel，右側顯示 `utf-8 :: <file-name> :: ready`
+- 前綴標記採每行顯示的混合型 tag，例如 `INFO`、`WARN`、`IO`、`CORE`、`TRACE`
+- toolbar 保留極簡骨架，只保留目前必要元素，作為未來功能承載區
+- 未來可考慮讓 toolbar 在非 hover 狀態下更像 log/header 資訊，hover 後再顯示真實功能控制
+
+OpenSpec 狀態：
+
+- 已 archive：`openspec/changes/archive/2026-04-24-phase-2-panel-disguise-language/`
+- 已 sync 至主 spec：`openspec/specs/panel-disguise-language/spec.md`
+
+## Later
 
 ### Phase 3: 閱讀狀態保存
 
@@ -68,14 +89,14 @@ Phase 1 討論決議：
 - 多種老闆鍵模板
 - Stealth / Normal / Focus
 - hover 淡化細節
+- toolbar 非 hover 偽裝、hover 後顯示真實功能
 - 較大檔案的效能優化
 - 更多編碼支援
 - 搜尋、跳行、書籤
 
 ## Open Questions
 
-- `Phase 0` 的 view title 未來是否開放使用者自訂
-- `Phase 1` 是否直接加入行號
-- `Phase 1` 是否直接加入閱讀位置保存
+- `Phase 3` 是否直接加入閱讀位置保存
 - 老闆鍵預設模板是否固定從 log 開始
-- `Phase 1` 是否同時提供 command-based 路徑輸入入口
+- 後續是否提供 command-based 檔案路徑輸入入口
+- `Log Peak` 的 view title 未來是否開放使用者自訂

@@ -12,4 +12,4 @@
 ## 3. Verification
 
 - [x] 3.1 Add or wire minimal repeatable tests for extension activation and panel registration behavior where practical for this phase.
-- [ ] 3.2 Verify manually in Extension Development Host that `Log Peak` appears in the bottom panel and matches the intended output/log direction.
+- [x] 3.2 Verify manually in Extension Development Host that `Log Peak` appears in the bottom panel and matches the intended output/log direction.
