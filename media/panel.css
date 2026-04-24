@@ -116,6 +116,114 @@ button {
   overflow: hidden;
 }
 
+.reading-chrome {
+  flex: 0 0 auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 22%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vscode-panel-border) 8%, transparent),
+      color-mix(in srgb, var(--vscode-editor-background) 92%, transparent)
+    );
+  overflow: clip;
+}
+
+.reading-chrome__peek {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.reading-chrome__peek-handle {
+  width: 42px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 70%, transparent);
+}
+
+.reading-chrome__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 8px;
+}
+
+.reading-chrome[data-mode="collapsed"] .reading-chrome__panel {
+  display: none;
+}
+
+.reading-chrome__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--vscode-descriptionForeground);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reading-chrome__title {
+  color: var(--vscode-editor-foreground);
+}
+
+.reading-chrome__meta {
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--vscode-descriptionForeground) 92%, transparent);
+}
+
+.reading-chrome__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reading-chrome__chip {
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 52%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--vscode-descriptionForeground) 92%, transparent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reading-chrome__chip::before {
+  content: "source :: ";
+  color: color-mix(in srgb, var(--vscode-descriptionForeground) 76%, transparent);
+}
+
+.reading-chrome__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reading-chrome__action {
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 42%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--vscode-button-secondaryBackground) 86%, transparent);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+}
+
+.reading-chrome__action:hover {
+  background: color-mix(in srgb, var(--vscode-button-secondaryHoverBackground) 90%, transparent);
+}
+
+.reading-chrome__action--ghost {
+  background: transparent;
+  color: color-mix(in srgb, var(--vscode-descriptionForeground) 92%, transparent);
+}
+
+.reading-chrome__action--ghost:hover {
+  background: color-mix(in srgb, var(--vscode-editorHoverWidget-background) 28%, transparent);
+}
+
 .empty-state {
   display: flex;
   flex: 1;

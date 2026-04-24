@@ -138,6 +138,10 @@ LogPeak
 - 閱讀模式的固定 header / toolbar 先暫時移除，以保留閱讀空間；後續改以可縮合 chrome 另案處理
 - `Phase 3` 已 archive OpenSpec change：`2026-04-24-phase-3-restore-reading-session`
 - `Phase 3` 主 spec 已同步到 `openspec/specs/reading-session-restore/spec.md`
+- 閱讀模式可縮合 chrome 不算 `Phase 4`，而是 `Phase 3` 後的一個小 change
+- 閱讀模式可縮合 chrome 的方向為：初始完整顯示，閱讀後縮成薄 bar，滑鼠移入可展開，點一下可固定展開，再點一次收回
+- 閱讀模式可縮合 chrome 已完成第一版實作，並保留 `.shell__rows` 作為實際內容滾動容器，以避免破壞閱讀位置保存
+- 可縮合 chrome 若造成滾動卡頓，優先以降低 scroll 時的 DOM 更新頻率處理，而不是回退保存鏈路
 
 ## 文件同步紀錄
 

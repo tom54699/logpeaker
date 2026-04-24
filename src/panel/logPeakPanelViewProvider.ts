@@ -6,6 +6,10 @@ import {
   getToolbarSourceLabel,
 } from "./disguiseLanguage";
 import {
+  COLLAPSIBLE_CHROME_COLLAPSE_SCROLL_TOP,
+  COLLAPSIBLE_CHROME_EXPAND_SCROLL_TOP,
+} from "./readingChrome";
+import {
   createReadingSession,
   parseReadingSession,
   resolveRestoreTarget,
@@ -225,6 +229,10 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     state: PanelState,
   ): string {
     const serializedState = serializeForScript(state);
+    const chromeThresholds = serializeForScript({
+      collapse: COLLAPSIBLE_CHROME_COLLAPSE_SCROLL_TOP,
+      expand: COLLAPSIBLE_CHROME_EXPAND_SCROLL_TOP,
+    });
 
     return `<!DOCTYPE html>
       <html lang="en">
@@ -250,13 +258,22 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             const bootMeta = document.getElementById("boot-meta");
             const panelRoot = document.getElementById("panel-root");
             const stylesheet = document.getElementById("panel-stylesheet");
+            const chromeThresholds = ${chromeThresholds};
             let currentRenderedState = initialState;
             let stylesReady = false;
             let scrollSaveTimer = null;
             let boundRows = null;
+            let boundChrome = null;
+            let boundChromeToggleLabel = null;
+            let chromeSyncFrame = null;
             let latestProgress = {
               scrollTop: 0,
               topLine: 1,
+            };
+            let readingChromeState = {
+              pinned: false,
+              hovered: false,
+              mode: "expanded",
             };
 
             function escapeHtml(value) {
@@ -327,6 +344,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             }
 
             function handleRowsScroll() {
+              scheduleReadingChromeSync();
               persistProgress(false);
             }
 
@@ -345,6 +363,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               boundRows = rows;
               rows.addEventListener("scroll", handleRowsScroll, { passive: true });
+              syncReadingChrome();
             }
 
             function unbindRowsScroll() {
@@ -353,6 +372,121 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               }
 
               boundRows = null;
+            }
+
+            function getNextChromeMode(scrollTop) {
+              if (readingChromeState.pinned || readingChromeState.hovered) {
+                return "expanded";
+              }
+
+              if (scrollTop > chromeThresholds.collapse) {
+                return "collapsed";
+              }
+
+              if (scrollTop <= chromeThresholds.expand) {
+                return "expanded";
+              }
+
+              return readingChromeState.mode;
+            }
+
+            function applyReadingChromeState() {
+              if (!(boundChrome instanceof HTMLElement)) {
+                return;
+              }
+
+              if (boundChrome.dataset.mode !== readingChromeState.mode) {
+                boundChrome.dataset.mode = readingChromeState.mode;
+              }
+
+              const pinnedValue = String(readingChromeState.pinned);
+              if (boundChrome.dataset.pinned !== pinnedValue) {
+                boundChrome.dataset.pinned = pinnedValue;
+              }
+
+              if (boundChromeToggleLabel instanceof HTMLElement) {
+                const nextLabel = readingChromeState.pinned ? "collapse" : "keep open";
+                if (boundChromeToggleLabel.textContent !== nextLabel) {
+                  boundChromeToggleLabel.textContent = nextLabel;
+                }
+              }
+            }
+
+            function syncReadingChrome(forceMode) {
+              if (!(boundRows instanceof HTMLElement) || !(boundChrome instanceof HTMLElement)) {
+                return;
+              }
+
+              const nextMode = forceMode || getNextChromeMode(boundRows.scrollTop);
+              const modeChanged = nextMode !== readingChromeState.mode;
+              if (modeChanged) {
+                readingChromeState.mode = nextMode;
+              }
+
+              if (modeChanged || forceMode) {
+                applyReadingChromeState();
+              }
+            }
+
+            function scheduleReadingChromeSync() {
+              if (chromeSyncFrame !== null) {
+                return;
+              }
+
+              chromeSyncFrame = window.requestAnimationFrame(() => {
+                chromeSyncFrame = null;
+                syncReadingChrome();
+              });
+            }
+
+            function handleChromeMouseEnter() {
+              readingChromeState.hovered = true;
+              syncReadingChrome("expanded");
+            }
+
+            function handleChromeMouseLeave() {
+              readingChromeState.hovered = false;
+              syncReadingChrome();
+            }
+
+            function bindReadingChrome(chrome) {
+              if (!(chrome instanceof HTMLElement)) {
+                return;
+              }
+
+              if (boundChrome === chrome) {
+                return;
+              }
+
+              if (boundChrome instanceof HTMLElement) {
+                boundChrome.removeEventListener("mouseenter", handleChromeMouseEnter);
+                boundChrome.removeEventListener("mouseleave", handleChromeMouseLeave);
+              }
+
+              boundChrome = chrome;
+              boundChromeToggleLabel = chrome.querySelector("[data-role='chrome-toggle-label']");
+              chrome.addEventListener("mouseenter", handleChromeMouseEnter);
+              chrome.addEventListener("mouseleave", handleChromeMouseLeave);
+              applyReadingChromeState();
+            }
+
+            function unbindReadingChrome() {
+              if (boundChrome instanceof HTMLElement) {
+                boundChrome.removeEventListener("mouseenter", handleChromeMouseEnter);
+                boundChrome.removeEventListener("mouseleave", handleChromeMouseLeave);
+              }
+
+              boundChrome = null;
+              boundChromeToggleLabel = null;
+              if (chromeSyncFrame !== null) {
+                window.cancelAnimationFrame(chromeSyncFrame);
+                chromeSyncFrame = null;
+              }
+              readingChromeState = {
+                pinned: false,
+                hovered: false,
+                mode: "expanded",
+              };
             }
 
             function applyRestoreTarget(rows, restoreTarget, attempt = 0) {
@@ -388,6 +522,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                     rows.scrollTop = targetRow.offsetTop;
                   }
                 }
+
+                syncReadingChrome();
 
                 if (attempt >= 20) {
                   return;
@@ -469,6 +605,26 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               return \`
                 <section class="loaded-state">
+                  <div class="reading-chrome" data-mode="expanded" data-pinned="false">
+                    <button class="reading-chrome__peek" data-action="toggle-chrome" type="button" aria-label="Toggle reading chrome">
+                      <span class="reading-chrome__peek-handle" aria-hidden="true"></span>
+                    </button>
+                    <div class="reading-chrome__panel">
+                      <div class="reading-chrome__header">
+                        <span class="reading-chrome__title">output :: log-peak.panel</span>
+                        <span class="reading-chrome__meta">\${escapeHtml(state.metaText)}</span>
+                      </div>
+                      <div class="reading-chrome__toolbar">
+                        <span class="reading-chrome__chip">\${escapeHtml(state.toolbarSourceLabel)}</span>
+                        <div class="reading-chrome__actions">
+                          <button class="reading-chrome__action" data-action="open-txt" type="button">Open TXT</button>
+                          <button class="reading-chrome__action reading-chrome__action--ghost" data-action="toggle-chrome" type="button">
+                            <span data-role="chrome-toggle-label">keep open</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <div class="shell__rows">
                     \${createLoadedRows(state.content, state.rowDecorations)}
                   </div>
@@ -484,12 +640,17 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               currentRenderedState = state;
 
               if (state.kind === "loaded") {
+                const chrome = panelRoot.querySelector(".reading-chrome");
                 const rows = panelRoot.querySelector(".shell__rows");
+                if (chrome instanceof HTMLElement) {
+                  bindReadingChrome(chrome);
+                }
                 if (rows instanceof HTMLElement) {
                   bindRowsScroll(rows);
                   window.setTimeout(() => applyRestoreTarget(rows, state.restoreTarget), 0);
                 }
               } else {
+                unbindReadingChrome();
                 unbindRowsScroll();
               }
             }
@@ -515,6 +676,13 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               if (target.closest("[data-action='open-txt']")) {
                 vscode.postMessage({ type: "openTxt" });
+                return;
+              }
+
+              if (target.closest("[data-action='toggle-chrome']")) {
+                readingChromeState.pinned = !readingChromeState.pinned;
+                readingChromeState.hovered = false;
+                syncReadingChrome(readingChromeState.pinned ? "expanded" : undefined);
               }
             });
 
@@ -573,7 +741,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
-function serializeForScript(value: PanelState): string {
+function serializeForScript<T>(value: T): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 

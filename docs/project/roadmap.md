@@ -87,6 +87,27 @@ OpenSpec 狀態：
 - 已 archive：`openspec/changes/archive/2026-04-24-phase-3-restore-reading-session/`
 - 已 sync 至主 spec：`openspec/specs/reading-session-restore/spec.md`
 
+### Small Change: 閱讀模式可縮合 chrome
+
+- 不算 `Phase 4`
+- 作為 `Phase 3` 後的 UI refinement
+- 目標是讓閱讀模式在保留必要 chrome 的前提下，不長期吃掉閱讀空間
+- 已完成 hover 展開、點擊固定展開/收回、與薄 bar 縮合
+
+討論決議：
+
+- 初始顯示完整 chrome
+- 開始閱讀後可縮成薄 bar
+- 滑鼠移入可展開
+- 點一下可固定展開，再點一次可收回
+- 保持 `.shell__rows` 為實際內容滾動容器，避免破壞 Phase 3 的保存與恢復
+- 若縮合互動導致滾動卡頓，優先降低 scroll 時的 DOM 更新頻率
+
+OpenSpec 狀態：
+
+- 已 archive：`openspec/changes/archive/2026-04-24-collapsible-reading-chrome/`
+- 已 sync 至主 spec：`openspec/specs/collapsible-reading-chrome/spec.md`
+
 ## Later
 
 ### Phase 4: 最小老闆鍵
@@ -100,7 +121,6 @@ OpenSpec 狀態：
 - 多種老闆鍵模板
 - Stealth / Normal / Focus
 - hover 淡化細節
-- 閱讀模式可縮合 chrome
 - toolbar 非 hover 偽裝、hover 後顯示真實功能
 - 較大檔案的效能優化
 - 更多編碼支援
