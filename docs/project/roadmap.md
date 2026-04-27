@@ -125,13 +125,28 @@ OpenSpec 狀態：
 - 已 archive：`openspec/changes/archive/2026-04-27-large-txt-performance/`
 - 已 sync 至主 spec：`openspec/specs/large-txt-performance/spec.md`
 
-## Later
-
 ### Phase 4: 最小老闆鍵
 
 - 單一假畫面模板
 - 同一 view 內切換
 - 切回恢復原位置
+- 已完成 command / 快捷鍵觸發與閱讀狀態回復
+
+Phase 4 討論決議：
+
+- 第一版假畫面基準採 `Service / Runtime Log`
+- 第一版只用 `command / 快捷鍵` 觸發，不在畫面上放明顯切換入口
+- 第一版預設快捷鍵採跨平台對應：`Cmd/Ctrl + Alt + \``
+- 快捷鍵僅在 `Log Peak` 可見時生效，避免在其他 editor 或 panel 誤觸
+- 切回時採中等恢復：恢復原本 TXT、閱讀位置、以及閱讀 chrome 狀態
+- boss mode 假畫面不得直接暴露真實 TXT 檔名
+
+OpenSpec 狀態：
+
+- 已 archive：`openspec/changes/archive/2026-04-27-phase-4-minimal-boss-mode/`
+- 已 sync 至主 spec：`openspec/specs/minimal-boss-mode/spec.md`
+
+## Later
 
 ## Future
 
@@ -144,6 +159,5 @@ OpenSpec 狀態：
 
 ## Open Questions
 
-- 老闆鍵預設模板是否固定從 log 開始
 - 後續是否提供 command-based 檔案路徑輸入入口
 - `Log Peak` 的 view title 未來是否開放使用者自訂

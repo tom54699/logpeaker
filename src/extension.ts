@@ -9,6 +9,9 @@ export function activate(context: vscode.ExtensionContext): void {
       LogPeakPanelViewProvider.viewType,
       provider,
     ),
+    vscode.commands.registerCommand("logPeak.toggleBossMode", async () => {
+      await provider.toggleBossMode();
+    }),
   );
 }
 

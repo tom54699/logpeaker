@@ -105,6 +105,34 @@ button {
   overflow: hidden;
 }
 
+.loaded-state--boss {
+  background: var(--vscode-editor-background);
+}
+
+.boss-state__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 18%, transparent);
+  color: var(--vscode-descriptionForeground);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.boss-state__title {
+  color: var(--vscode-editor-foreground);
+}
+
+.boss-state__meta {
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--vscode-descriptionForeground) 92%, transparent);
+}
+
+.shell__rows--boss {
+  padding-top: 0;
+}
+
 .reading-chrome {
   flex: 0 0 auto;
   border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 22%, transparent);

@@ -1,5 +1,13 @@
 import * as vscode from "vscode";
 import {
+  createBossModeRows,
+  createDefaultReadingChromeSnapshot,
+  formatBossModeMeta,
+  normalizeReadingChromeSnapshot,
+  type BossModeRow,
+  type ReadingChromeSnapshot,
+} from "./bossMode";
+import {
   formatLoadedMeta,
   getToolbarSourceLabel,
 } from "./disguiseLanguage";
@@ -17,6 +25,18 @@ import {
 import { decodeUtf8Text } from "./textFile";
 
 const READING_SESSION_KEY = "logPeak.readingSession";
+const LOG_PEAK_VISIBLE_CONTEXT_KEY = "logPeak.visible";
+
+type LoadedPanelState =
+  {
+    kind: "loaded";
+    fileName: string;
+    content: string;
+    metaText: string;
+    toolbarSourceLabel: string;
+    restoreTarget: RestoreTarget | null;
+    chromeState: ReadingChromeSnapshot;
+  };
 
 type PanelState =
   | {
@@ -30,14 +50,18 @@ type PanelState =
       kind: "error";
       message: string;
     }
-    | {
-        kind: "loaded";
-      fileName: string;
-      content: string;
+  | LoadedPanelState
+  | {
+      kind: "boss";
       metaText: string;
-      toolbarSourceLabel: string;
-      restoreTarget: RestoreTarget | null;
+      rows: BossModeRow[];
     };
+
+type BossModeSnapshot = {
+  previousState: Exclude<PanelState, { kind: "boss" }>;
+  readingSession: ReadingSession | null;
+  chromeState: ReadingChromeSnapshot;
+};
 
 export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "logPeak.panelView";
@@ -45,6 +69,9 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
   private state: PanelState = { kind: "empty" };
   private isRestoringSession = false;
   private currentSession: ReadingSession | null = null;
+  private currentReadingChromeState: ReadingChromeSnapshot = createDefaultReadingChromeSnapshot();
+  private bossModeSnapshot: BossModeSnapshot | null = null;
+  private pendingBossModeEntry = false;
 
   public constructor(
     private readonly extensionUri: vscode.Uri,
@@ -53,6 +80,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.view = webviewView;
+    this.updateVisibilityContext(webviewView.visible);
 
     const { webview } = webviewView;
     const stylesheetUri = webview.asWebviewUri(
@@ -65,6 +93,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     };
 
     webviewView.onDidChangeVisibility(() => {
+      this.updateVisibilityContext(webviewView.visible);
       if (webviewView.visible) {
         void this.restoreReadingSession();
       }
@@ -74,6 +103,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       type?: string;
       scrollTop?: number;
       topLine?: number;
+      mode?: string;
+      pinned?: boolean;
     }) => {
       if (message.type === "openTxt") {
         await this.openTxtFile();
@@ -86,10 +117,43 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       ) {
         await this.saveReadingProgress(message.scrollTop, message.topLine);
       }
+
+      if (message.type === "chromeStateChanged") {
+        this.currentReadingChromeState = normalizeReadingChromeSnapshot({
+          mode: message.mode as ReadingChromeSnapshot["mode"] | undefined,
+          pinned: message.pinned,
+        });
+      }
+
+      if (message.type === "bossModeReady") {
+        await this.completeBossModeEntry({
+          scrollTop: message.scrollTop,
+          topLine: message.topLine,
+          mode: message.mode,
+          pinned: message.pinned,
+        });
+      }
     });
 
     webviewView.webview.html = this.getHtml(webview, stylesheetUri, this.state);
     void this.restoreReadingSession();
+  }
+
+  private updateVisibilityContext(visible: boolean): void {
+    void vscode.commands.executeCommand("setContext", LOG_PEAK_VISIBLE_CONTEXT_KEY, visible);
+  }
+
+  public async toggleBossMode(): Promise<void> {
+    if (this.pendingBossModeEntry) {
+      return;
+    }
+
+    if (this.state.kind === "boss") {
+      this.exitBossMode();
+      return;
+    }
+
+    await this.enterBossMode();
   }
 
   private async openTxtFile(): Promise<void> {
@@ -112,10 +176,11 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     try {
       await this.loadFileIntoPanel(fileUri, null);
     } catch (error) {
-      this.currentSession = null;
-      await this.workspaceState.update(READING_SESSION_KEY, undefined);
-      this.state = toErrorState(error);
-      this.render();
+    this.currentSession = null;
+    this.currentReadingChromeState = createDefaultReadingChromeSnapshot();
+    await this.workspaceState.update(READING_SESSION_KEY, undefined);
+    this.state = toErrorState(error);
+    this.render();
     }
   }
 
@@ -195,6 +260,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       metaText: formatLoadedMeta(fileName),
       toolbarSourceLabel: getToolbarSourceLabel(),
       restoreTarget,
+      chromeState: this.currentReadingChromeState,
     };
 
     this.render();
@@ -212,6 +278,95 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     });
 
     await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
+  }
+
+  private async enterBossMode(): Promise<void> {
+    if (this.state.kind === "loaded" && this.view) {
+      this.pendingBossModeEntry = true;
+      const delivered = await this.view.webview.postMessage({ type: "prepareBossMode" });
+      if (delivered) {
+        return;
+      }
+      this.pendingBossModeEntry = false;
+    }
+
+    await this.completeBossModeEntry();
+  }
+
+  private async completeBossModeEntry(progress?: {
+    scrollTop?: number;
+    topLine?: number;
+    mode?: string;
+    pinned?: boolean;
+  }): Promise<void> {
+    if (this.state.kind !== "loaded" && !this.pendingBossModeEntry && this.bossModeSnapshot) {
+      return;
+    }
+
+    this.pendingBossModeEntry = false;
+
+    const previousState =
+      this.state.kind === "boss"
+        ? this.bossModeSnapshot?.previousState ?? { kind: "empty" }
+        : this.state;
+    const chromeState = normalizeReadingChromeSnapshot({
+      mode: progress?.mode as ReadingChromeSnapshot["mode"] | undefined,
+      pinned: progress?.pinned,
+    });
+
+    if (previousState.kind === "loaded" && this.currentSession) {
+      this.currentSession = createReadingSession({
+        ...this.currentSession,
+        scrollTop: progress?.scrollTop ?? this.currentSession.scrollTop,
+        topLine: progress?.topLine ?? this.currentSession.topLine,
+      });
+      await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
+    }
+
+    this.currentReadingChromeState = chromeState;
+    this.bossModeSnapshot = {
+      previousState,
+      readingSession: this.currentSession ? createReadingSession(this.currentSession) : null,
+      chromeState,
+    };
+
+    const referenceFileName =
+      previousState.kind === "loaded" ? previousState.fileName : this.currentSession?.fileName;
+    this.state = {
+      kind: "boss",
+      metaText: formatBossModeMeta(referenceFileName),
+      rows: createBossModeRows(referenceFileName),
+    };
+    this.render();
+  }
+
+  private exitBossMode(): void {
+    const snapshot = this.bossModeSnapshot;
+    this.bossModeSnapshot = null;
+
+    if (!snapshot) {
+      this.state = { kind: "empty" };
+      this.render();
+      return;
+    }
+
+    this.currentReadingChromeState = normalizeReadingChromeSnapshot(snapshot.chromeState);
+    this.currentSession = snapshot.readingSession ? createReadingSession(snapshot.readingSession) : null;
+
+    if (snapshot.previousState.kind === "loaded") {
+      const restoreTarget = this.currentSession
+        ? resolveRestoreTarget(this.currentSession, this.currentSession.fileMtimeMs)
+        : snapshot.previousState.restoreTarget;
+      this.state = {
+        ...snapshot.previousState,
+        restoreTarget,
+        chromeState: this.currentReadingChromeState,
+      };
+    } else {
+      this.state = snapshot.previousState;
+    }
+
+    this.render();
   }
 
   private getHtml(
@@ -267,6 +422,10 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               pinned: false,
               hovered: false,
               mode: "expanded",
+            };
+            let lastReportedChromeState = {
+              mode: "expanded",
+              pinned: false,
             };
 
             function escapeHtml(value) {
@@ -459,6 +618,21 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 if (boundChromeToggleLabel.textContent !== nextLabel) {
                   boundChromeToggleLabel.textContent = nextLabel;
                 }
+              }
+
+              if (
+                lastReportedChromeState.mode !== readingChromeState.mode ||
+                lastReportedChromeState.pinned !== readingChromeState.pinned
+              ) {
+                lastReportedChromeState = {
+                  mode: readingChromeState.mode,
+                  pinned: readingChromeState.pinned,
+                };
+                vscode.postMessage({
+                  type: "chromeStateChanged",
+                  mode: readingChromeState.mode,
+                  pinned: readingChromeState.pinned,
+                });
               }
             }
 
@@ -714,6 +888,12 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               appendChunk();
             }
 
+            function renderBossRows(rows) {
+              return rows
+                .map((row) => \`<div class="row row--tagged row--tone-\${row.tone}" data-line="\${row.line}" data-index="\${String(row.line).padStart(3, "0")}" data-tag="\${escapeHtml(row.tag)}"><span class="row__content">\${escapeHtml(row.content)}</span></div>\`)
+                .join("");
+            }
+
             function renderPanelBody(state) {
               if (state.kind === "empty") {
                 return \`
@@ -748,6 +928,18 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                       <span class="loading-indicator__dot"></span>
                       <span class="loading-indicator__dot"></span>
                     </div>
+                  </section>
+                \`;
+              }
+
+              if (state.kind === "boss") {
+                return \`
+                  <section class="loaded-state loaded-state--boss">
+                    <div class="boss-state__header">
+                      <span class="boss-state__title">runtime :: service-log</span>
+                      <span class="boss-state__meta">\${escapeHtml(state.metaText)}</span>
+                    </div>
+                    <div class="shell__rows shell__rows--boss">\${renderBossRows(state.rows)}</div>
                   </section>
                 \`;
               }
@@ -787,6 +979,15 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               currentRenderedState = state;
 
               if (state.kind === "loaded") {
+                readingChromeState = {
+                  pinned: state.chromeState.pinned,
+                  hovered: false,
+                  mode: state.chromeState.mode,
+                };
+                lastReportedChromeState = {
+                  mode: state.chromeState.mode,
+                  pinned: state.chromeState.pinned,
+                };
                 const chrome = panelRoot.querySelector(".reading-chrome");
                 const rows = panelRoot.querySelector(".shell__rows");
                 if (chrome instanceof HTMLElement) {
@@ -848,6 +1049,24 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               const message = event.data;
               if (message?.type === "renderState") {
                 render(message.state);
+                return;
+              }
+
+              if (message?.type === "prepareBossMode") {
+                if (currentRenderedState.kind === "loaded") {
+                  persistProgress(true);
+                  vscode.postMessage({
+                    type: "bossModeReady",
+                    scrollTop: latestProgress.scrollTop,
+                    topLine: latestProgress.topLine,
+                    mode: readingChromeState.mode,
+                    pinned: readingChromeState.pinned,
+                  });
+                } else {
+                  vscode.postMessage({
+                    type: "bossModeReady",
+                  });
+                }
               }
             });
 

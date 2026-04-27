@@ -11,7 +11,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:logPeak.panelView"
+    "onView:logPeak.panelView",
+    "onCommand:logPeak.toggleBossMode"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -30,6 +31,29 @@
           "id": "logPeak.panelView",
           "name": "Log Peak",
           "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "logPeak.toggleBossMode",
+        "title": "Toggle Boss Mode",
+        "category": "Log Peak"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "logPeak.toggleBossMode",
+        "key": "ctrl+alt+`",
+        "mac": "cmd+alt+`",
+        "when": "logPeak.visible"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "logPeak.toggleBossMode",
+          "when": "true"
         }
       ]
     }

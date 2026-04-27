@@ -148,6 +148,11 @@ LogPeak
 - 大檔性能優化已補上可重複測試，涵蓋資料整形、行裝飾規則與 top-line 計算
 - 大檔性能優化已 archive OpenSpec change：`2026-04-27-large-txt-performance`
 - 大檔性能優化主 spec 已同步到 `openspec/specs/large-txt-performance/spec.md`
+- `Phase 4` 最小老闆鍵目前已先定出骨架：假畫面基準採 `Service / Runtime Log`、只用 `command / 快捷鍵` 觸發、切回時採中等恢復
+- `Phase 4` 第一版預設快捷鍵採 `Cmd/Ctrl + Alt + \``，並限制在 `Log Peak` 可見時才生效
+- `Phase 4` boss mode 假畫面採 generic runtime/service 語言，不直接暴露真實 TXT 檔名
+- `Phase 4` 已 archive OpenSpec change：`2026-04-27-phase-4-minimal-boss-mode`
+- `Phase 4` 主 spec 已同步到 `openspec/specs/minimal-boss-mode/spec.md`
 
 ## 文件同步紀錄
 
@@ -171,3 +176,6 @@ LogPeak
 | 2026-04-24 | 建立 `phase-3-restore-reading-session` OpenSpec change 與 artifacts | Codex |
 | 2026-04-24 | 完成 `Phase 3` 實作與手動驗證，sync 到主 spec 並 archive | Codex |
 | 2026-04-27 | 完成大檔 TXT 第一輪性能優化，sync 到主 spec 並 archive | Codex |
+| 2026-04-27 | 同步 `Phase 4` 最小老闆鍵的第一輪決議骨架 | Codex |
+| 2026-04-27 | 建立 `phase-4-minimal-boss-mode` OpenSpec change 與 artifacts | Codex |
+| 2026-04-27 | 完成 `Phase 4` 最小老闆鍵，sync 到主 spec 並 archive | Codex |

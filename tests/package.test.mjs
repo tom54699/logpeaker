@@ -8,7 +8,10 @@ const packageJsonPath = path.join(root, "package.json");
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
 test("extension activates on the panel view", () => {
-  assert.deepEqual(packageJson.activationEvents, ["onView:logPeak.panelView"]);
+  assert.deepEqual(packageJson.activationEvents, [
+    "onView:logPeak.panelView",
+    "onCommand:logPeak.toggleBossMode",
+  ]);
   assert.equal(packageJson.main, "./out/extension.js");
 });
 
@@ -24,6 +27,20 @@ test("package contributes a Log Peak panel view container", () => {
 
   assert.ok(panelView);
   assert.equal(panelView.type, "webview");
+
+  const commands = packageJson.contributes?.commands ?? [];
+  const toggleBossModeCommand = commands.find((item) => item.command === "logPeak.toggleBossMode");
+
+  assert.ok(toggleBossModeCommand);
+  assert.equal(toggleBossModeCommand.title, "Toggle Boss Mode");
+
+  const keybindings = packageJson.contributes?.keybindings ?? [];
+  const toggleBossModeKeybinding = keybindings.find((item) => item.command === "logPeak.toggleBossMode");
+
+  assert.ok(toggleBossModeKeybinding);
+  assert.equal(toggleBossModeKeybinding.key, "ctrl+alt+`");
+  assert.equal(toggleBossModeKeybinding.mac, "cmd+alt+`");
+  assert.equal(toggleBossModeKeybinding.when, "logPeak.visible");
 });
 
 test("panel assets exist", () => {
