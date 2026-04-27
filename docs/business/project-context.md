@@ -146,6 +146,8 @@ LogPeak
 - 大檔性能優化作為新的小 change 處理，先做低風險優化，再視結果評估虛擬滾動
 - 大檔性能優化第一輪已完成：`topLine` 移出 scroll hot path、移除逐行 decoration payload、加入分批 render，並重新修正 reopen restore 不被 chunk render 破壞
 - 大檔性能優化已補上可重複測試，涵蓋資料整形、行裝飾規則與 top-line 計算
+- 大檔性能優化已 archive OpenSpec change：`2026-04-27-large-txt-performance`
+- 大檔性能優化主 spec 已同步到 `openspec/specs/large-txt-performance/spec.md`
 
 ## 文件同步紀錄
 
@@ -168,3 +170,4 @@ LogPeak
 | 2026-04-24 | 同步 `Phase 3` 閱讀狀態保存的初步決議 | Codex |
 | 2026-04-24 | 建立 `phase-3-restore-reading-session` OpenSpec change 與 artifacts | Codex |
 | 2026-04-24 | 完成 `Phase 3` 實作與手動驗證，sync 到主 spec 並 archive | Codex |
+| 2026-04-27 | 完成大檔 TXT 第一輪性能優化，sync 到主 spec 並 archive | Codex |
