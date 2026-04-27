@@ -2,7 +2,20 @@
 
 ## Now
 
-- 無 active change
+### Small Change: 大檔 TXT 性能優化
+
+- 目標是改善大 TXT 的載入與滾動卡頓
+- 優先做低風險優化，不先直接重構整個渲染模型
+- 若低風險優化不足，再進一步評估虛擬滾動
+
+目前進度：
+
+- 已將 `topLine` 計算移出 scroll hot path
+- 已移除 host→webview 的逐行 decoration payload
+- 已加入分批 render，降低大 TXT 初始凍結感
+- 已補上對應的資料整形與進度計算測試
+- 已手動驗證大 TXT 載入更快且 reopen restore 再次可用
+- 目前待決：是否仍需要更進一步的虛擬滾動
 
 ## Completed
 
@@ -122,7 +135,6 @@ OpenSpec 狀態：
 - Stealth / Normal / Focus
 - hover 淡化細節
 - toolbar 非 hover 偽裝、hover 後顯示真實功能
-- 較大檔案的效能優化
 - 更多編碼支援
 - 搜尋、跳行、書籤
 

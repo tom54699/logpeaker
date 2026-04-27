@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
 import {
-  createRowDecorations,
   formatLoadedMeta,
-  getDisplayFileName,
   getToolbarSourceLabel,
 } from "./disguiseLanguage";
 import {
@@ -36,14 +34,9 @@ type PanelState =
         kind: "loaded";
       fileName: string;
       content: string;
-      displayFileName: string;
       metaText: string;
       toolbarSourceLabel: string;
       restoreTarget: RestoreTarget | null;
-      rowDecorations: Array<{
-        tag: string | null;
-        tone: "none" | "info" | "warn" | "io" | "core" | "trace";
-      }>;
     };
 
 export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
@@ -199,11 +192,9 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       kind: "loaded",
       fileName,
       content,
-      displayFileName: getDisplayFileName(fileName),
       metaText: formatLoadedMeta(fileName),
       toolbarSourceLabel: getToolbarSourceLabel(),
       restoreTarget,
-      rowDecorations: createRowDecorations(content),
     };
 
     this.render();
@@ -266,6 +257,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             let boundChrome = null;
             let boundChromeToggleLabel = null;
             let chromeSyncFrame = null;
+            let rowsRenderToken = 0;
+            let restorePending = false;
             let latestProgress = {
               scrollTop: 0,
               topLine: 1,
@@ -284,25 +277,54 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             }
 
             function collectTopLine(rowsElement) {
-              const rows = Array.from(rowsElement.querySelectorAll(".row"));
-              let topLine = 1;
+              const rowElements = rowsElement.children;
+              if (!(rowElements instanceof HTMLCollection) || rowElements.length === 0) {
+                return 1;
+              }
 
-              for (const row of rows) {
+              const targetScrollTop = rowsElement.scrollTop;
+              let low = 0;
+              let high = rowElements.length - 1;
+              let candidateIndex = 0;
+
+              while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                const row = rowElements.item(mid);
                 if (!(row instanceof HTMLElement)) {
-                  continue;
+                  break;
                 }
 
-                if (row.offsetTop + row.offsetHeight > rowsElement.scrollTop) {
-                  topLine = Number(row.dataset.line || "1");
-                  break;
+                if (row.offsetTop <= targetScrollTop) {
+                  candidateIndex = mid;
+                  low = mid + 1;
+                } else {
+                  high = mid - 1;
                 }
               }
 
-              return topLine;
+              while (candidateIndex < rowElements.length - 1) {
+                const row = rowElements.item(candidateIndex);
+                if (!(row instanceof HTMLElement)) {
+                  break;
+                }
+
+                if (row.offsetTop + row.offsetHeight > targetScrollTop) {
+                  break;
+                }
+
+                candidateIndex += 1;
+              }
+
+              const candidate = rowElements.item(candidateIndex);
+              return Number(candidate?.dataset.line || "1");
             }
 
             function persistProgress(force = false) {
               if (currentRenderedState.kind !== "loaded") {
+                return;
+              }
+
+              if (restorePending) {
                 return;
               }
 
@@ -313,7 +335,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               latestProgress = {
                 scrollTop: rows.scrollTop,
-                topLine: collectTopLine(rows),
+                topLine: latestProgress.topLine,
               };
 
               if (!force) {
@@ -322,6 +344,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 }
 
                 scrollSaveTimer = window.setTimeout(() => {
+                  latestProgress.topLine = collectTopLine(rows);
                   vscode.postMessage({
                     type: "saveProgress",
                     scrollTop: latestProgress.scrollTop,
@@ -336,6 +359,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 scrollSaveTimer = null;
               }
 
+              latestProgress.topLine = collectTopLine(rows);
               vscode.postMessage({
                 type: "saveProgress",
                 scrollTop: latestProgress.scrollTop,
@@ -346,6 +370,22 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             function handleRowsScroll() {
               scheduleReadingChromeSync();
               persistProgress(false);
+            }
+
+            function cancelPendingRestore() {
+              if (!restorePending || !(boundRows instanceof HTMLElement)) {
+                return;
+              }
+
+              restorePending = false;
+              latestProgress = {
+                scrollTop: boundRows.scrollTop,
+                topLine: collectTopLine(boundRows),
+              };
+            }
+
+            function handleRowsIntent() {
+              cancelPendingRestore();
             }
 
             function bindRowsScroll(rows) {
@@ -359,19 +399,29 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               if (boundRows instanceof HTMLElement) {
                 boundRows.removeEventListener("scroll", handleRowsScroll);
+                boundRows.removeEventListener("wheel", handleRowsIntent);
+                boundRows.removeEventListener("pointerdown", handleRowsIntent);
+                boundRows.removeEventListener("touchstart", handleRowsIntent);
               }
 
               boundRows = rows;
               rows.addEventListener("scroll", handleRowsScroll, { passive: true });
+              rows.addEventListener("wheel", handleRowsIntent, { passive: true });
+              rows.addEventListener("pointerdown", handleRowsIntent, { passive: true });
+              rows.addEventListener("touchstart", handleRowsIntent, { passive: true });
               syncReadingChrome();
             }
 
             function unbindRowsScroll() {
               if (boundRows instanceof HTMLElement) {
                 boundRows.removeEventListener("scroll", handleRowsScroll);
+                boundRows.removeEventListener("wheel", handleRowsIntent);
+                boundRows.removeEventListener("pointerdown", handleRowsIntent);
+                boundRows.removeEventListener("touchstart", handleRowsIntent);
               }
 
               boundRows = null;
+              rowsRenderToken += 1;
             }
 
             function getNextChromeMode(scrollTop) {
@@ -489,8 +539,9 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               };
             }
 
-            function applyRestoreTarget(rows, restoreTarget, attempt = 0) {
+            function applyRestoreTarget(rows, restoreTarget, attempt = 0, onComplete = () => {}) {
               if (!restoreTarget || !(rows instanceof HTMLElement)) {
+                onComplete();
                 return;
               }
 
@@ -509,7 +560,9 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               if (!layoutReady) {
                 if (attempt < 20) {
-                  window.setTimeout(() => applyRestoreTarget(rows, restoreTarget, attempt + 1), 50);
+                  window.setTimeout(() => applyRestoreTarget(rows, restoreTarget, attempt + 1, onComplete), 50);
+                } else {
+                  onComplete();
                 }
                 return;
               }
@@ -526,6 +579,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 syncReadingChrome();
 
                 if (attempt >= 20) {
+                  onComplete();
                   return;
                 }
 
@@ -535,34 +589,129 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                     : rows.scrollTop > 0 || restoreTarget.topLine <= 1;
 
                 if (!restored) {
-                  window.setTimeout(() => applyRestoreTarget(rows, restoreTarget, attempt + 1), 50);
+                  window.setTimeout(() => applyRestoreTarget(rows, restoreTarget, attempt + 1, onComplete), 50);
+                } else {
+                  onComplete();
                 }
               };
 
               window.requestAnimationFrame(tryApply);
             }
 
-            function createLoadedRows(content, rowDecorations) {
-              return content
-                .replace(/\\r\\n/g, "\\n")
-                .replace(/\\r/g, "\\n")
-                .split("\\n")
+            function getRowDecoration(row, index) {
+              const trimmed = row.trim();
+              const lineOrdinal = index + 1;
+
+              if (!trimmed) {
+                return { tag: "TRACE", tone: "trace" };
+              }
+
+              if (trimmed.length <= 14 && lineOrdinal % 2 === 1) {
+                return { tag: "CORE", tone: "core" };
+              }
+
+              if (lineOrdinal % 17 === 0) {
+                return { tag: "WARN", tone: "warn" };
+              }
+
+              if (lineOrdinal % 11 === 0) {
+                return { tag: "TRACE", tone: "trace" };
+              }
+
+              if (lineOrdinal % 7 === 0) {
+                return { tag: "IO", tone: "io" };
+              }
+
+              return { tag: "INFO", tone: "info" };
+            }
+
+            function createLoadedRows(content) {
+              const rows = content.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n");
+              const lineDigits = String(rows.length).length;
+
+              return rows
                 .map((row, index) => {
-                  const decoration = Array.isArray(rowDecorations) ? rowDecorations[index] : undefined;
-                  const tag = decoration?.tag ?? "";
-                  const tone = decoration?.tone ?? "none";
-                  return \`
-                    <div
-                      class="row\${tag ? " row--tagged" : ""} row--tone-\${tone}"
-                      data-line="\${index + 1}"
-                      data-index="\${String(index + 1).padStart(2, "0")}"
-                      data-tag="\${escapeHtml(tag)}"
-                    >
-                      <span class="row__content">\${escapeHtml(row || " ")}</span>
-                    </div>
-                  \`;
+                  const decoration = getRowDecoration(row, index);
+                  const tag = decoration.tag;
+                  const tone = decoration.tone;
+                  return \`<div class="row\${tag ? " row--tagged" : ""} row--tone-\${tone}" data-line="\${index + 1}" data-index="\${String(index + 1).padStart(lineDigits, "0")}" data-tag="\${escapeHtml(tag)}"><span class="row__content">\${escapeHtml(row || " ")}</span></div>\`;
                 })
                 .join("");
+            }
+
+            function renderLoadedRowsChunked(rowsElement, state) {
+              if (!(rowsElement instanceof HTMLElement) || state.kind !== "loaded") {
+                return;
+              }
+
+              rowsRenderToken += 1;
+              const renderToken = rowsRenderToken;
+              restorePending = Boolean(state.restoreTarget);
+              latestProgress = {
+                scrollTop: state.restoreTarget?.scrollTop ?? 0,
+                topLine: state.restoreTarget?.topLine ?? 1,
+              };
+              const rows = state.content.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n");
+              const lineDigits = String(rows.length).length;
+              let nextIndex = 0;
+
+              rowsElement.innerHTML = "";
+
+              const appendChunk = () => {
+                if (renderToken !== rowsRenderToken) {
+                  return;
+                }
+
+                const chunkSize = nextIndex === 0 ? 100 : 400;
+                const endIndex = Math.min(nextIndex + chunkSize, rows.length);
+                let html = "";
+
+                for (let index = nextIndex; index < endIndex; index += 1) {
+                  const row = rows[index];
+                  const decoration = getRowDecoration(row, index);
+                  const tag = decoration.tag;
+                  const tone = decoration.tone;
+                  html += \`<div class="row\${tag ? " row--tagged" : ""} row--tone-\${tone}" data-line="\${index + 1}" data-index="\${String(index + 1).padStart(lineDigits, "0")}" data-tag="\${escapeHtml(tag)}"><span class="row__content">\${escapeHtml(row || " ")}</span></div>\`;
+                }
+
+                rowsElement.insertAdjacentHTML("beforeend", html);
+                nextIndex = endIndex;
+
+                if (restorePending && state.restoreTarget?.strategy === "exact") {
+                  rowsElement.scrollTop = state.restoreTarget.scrollTop;
+                } else if (restorePending && state.restoreTarget?.strategy === "line") {
+                  const targetRow = rowsElement.querySelector('[data-line="' + state.restoreTarget.topLine + '"]');
+                  if (targetRow instanceof HTMLElement) {
+                    rowsElement.scrollTop = targetRow.offsetTop;
+                  }
+                }
+
+                if (nextIndex >= rows.length) {
+                  if (restorePending) {
+                    applyRestoreTarget(rowsElement, state.restoreTarget, 0, () => {
+                      restorePending = false;
+                      latestProgress = {
+                        scrollTop: rowsElement.scrollTop,
+                        topLine: collectTopLine(rowsElement),
+                      };
+                    });
+                  } else {
+                    latestProgress = {
+                      scrollTop: rowsElement.scrollTop,
+                      topLine: collectTopLine(rowsElement),
+                    };
+                  }
+                  return;
+                }
+
+                if (typeof window.requestIdleCallback === "function") {
+                  window.requestIdleCallback(appendChunk, { timeout: 60 });
+                } else {
+                  window.setTimeout(appendChunk, 0);
+                }
+              };
+
+              appendChunk();
             }
 
             function renderPanelBody(state) {
@@ -625,9 +774,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                       </div>
                     </div>
                   </div>
-                  <div class="shell__rows">
-                    \${createLoadedRows(state.content, state.rowDecorations)}
-                  </div>
+                  <div class="shell__rows"></div>
                 </section>
               \`;
             }
@@ -647,9 +794,10 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 }
                 if (rows instanceof HTMLElement) {
                   bindRowsScroll(rows);
-                  window.setTimeout(() => applyRestoreTarget(rows, state.restoreTarget), 0);
+                  renderLoadedRowsChunked(rows, state);
                 }
               } else {
+                restorePending = false;
                 unbindReadingChrome();
                 unbindRowsScroll();
               }

@@ -142,6 +142,10 @@ LogPeak
 - 閱讀模式可縮合 chrome 的方向為：初始完整顯示，閱讀後縮成薄 bar，滑鼠移入可展開，點一下可固定展開，再點一次收回
 - 閱讀模式可縮合 chrome 已完成第一版實作，並保留 `.shell__rows` 作為實際內容滾動容器，以避免破壞閱讀位置保存
 - 可縮合 chrome 若造成滾動卡頓，優先以降低 scroll 時的 DOM 更新頻率處理，而不是回退保存鏈路
+- 大檔 TXT 卡頓已確認主要來自完整 DOM 渲染、每次 scroll 的 O(n) 可見行掃描、以及過大的 host→webview payload
+- 大檔性能優化作為新的小 change 處理，先做低風險優化，再視結果評估虛擬滾動
+- 大檔性能優化第一輪已完成：`topLine` 移出 scroll hot path、移除逐行 decoration payload、加入分批 render，並重新修正 reopen restore 不被 chunk render 破壞
+- 大檔性能優化已補上可重複測試，涵蓋資料整形、行裝飾規則與 top-line 計算
 
 ## 文件同步紀錄
 
