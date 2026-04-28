@@ -12,7 +12,7 @@ The system SHALL let the user toggle the current Log Peak panel between reading 
 - **THEN** the system does not open a separate editor tab or change the panel container
 
 ### Requirement: Command-driven boss-mode trigger
-The system SHALL expose the minimal boss mode through a command-oriented trigger path rather than a visible panel control.
+The system SHALL expose the minimal boss mode through a command-oriented trigger path rather than a visible panel control. The hover disguise setting is controlled separately via `logPeak.hoverDisguise` VS Code setting and does not share a command trigger with boss mode.
 
 #### Scenario: Boss mode is triggered without a visible toolbar entry
 - **WHEN** the user wants to enter or leave boss mode
@@ -23,6 +23,11 @@ The system SHALL expose the minimal boss mode through a command-oriented trigger
 - **WHEN** the default boss-mode keybinding is used
 - **THEN** it uses `Cmd + Option + \`` on macOS and `Ctrl + Alt + \`` on Windows/Linux
 - **THEN** it only applies while the `Log Peak` view is visible
+
+#### Scenario: Boss mode and hover disguise are independent
+- **WHEN** hover disguise is enabled and boss mode is toggled via keybinding
+- **THEN** boss mode activates as normal (full boss mode state, not hover-disguise overlay)
+- **THEN** disabling boss mode returns to the loaded state with hover disguise still active
 
 ### Requirement: Generic disguise metadata
 The system SHALL avoid exposing the active TXT identity in the runtime-log disguise metadata.

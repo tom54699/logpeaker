@@ -41,6 +41,16 @@
         "category": "Log Peak"
       }
     ],
+    "configuration": {
+      "title": "Log Peak",
+      "properties": {
+        "logPeak.hoverDisguise": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show boss mode overlay by default; hover over the panel to reveal TXT content."
+        }
+      }
+    },
     "keybindings": [
       {
         "command": "logPeak.toggleBossMode",

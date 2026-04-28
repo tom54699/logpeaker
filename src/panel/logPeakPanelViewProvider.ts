@@ -36,6 +36,11 @@ type LoadedPanelState =
     toolbarSourceLabel: string;
     restoreTarget: RestoreTarget | null;
     chromeState: ReadingChromeSnapshot;
+    hoverDisguise: {
+      enabled: boolean;
+      bossMetaText: string;
+      bossRows: BossModeRow[];
+    };
   };
 
 type PanelState =
@@ -77,6 +82,21 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     private readonly extensionUri: vscode.Uri,
     private readonly workspaceState: vscode.Memento,
   ) {}
+
+  private readHoverDisguiseSetting(): boolean {
+    return vscode.workspace.getConfiguration("logPeak").get<boolean>("hoverDisguise", true);
+  }
+
+  public updateHoverDisguiseSetting(): void {
+    if (this.state.kind !== "loaded") {
+      return;
+    }
+    this.state = {
+      ...this.state,
+      hoverDisguise: { ...this.state.hoverDisguise, enabled: this.readHoverDisguiseSetting() },
+    };
+    this.render();
+  }
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.view = webviewView;
@@ -155,6 +175,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
     await this.enterBossMode();
   }
+
 
   private async openTxtFile(): Promise<void> {
     const selection = await vscode.window.showOpenDialog({
@@ -261,6 +282,11 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       toolbarSourceLabel: getToolbarSourceLabel(),
       restoreTarget,
       chromeState: this.currentReadingChromeState,
+      hoverDisguise: {
+        enabled: this.readHoverDisguiseSetting(),
+        bossMetaText: formatBossModeMeta(fileName),
+        bossRows: createBossModeRows(fileName),
+      },
     };
 
     this.render();
@@ -411,6 +437,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             let boundRows = null;
             let boundChrome = null;
             let boundChromeToggleLabel = null;
+            let boundHoverDisguiseSection = null;
             let chromeSyncFrame = null;
             let rowsRenderToken = 0;
             let restorePending = false;
@@ -671,6 +698,37 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             function handleChromeMouseLeave() {
               readingChromeState.hovered = false;
               syncReadingChrome();
+            }
+
+            function handleHoverDisguiseMouseEnter() {
+              if (boundHoverDisguiseSection instanceof HTMLElement) {
+                boundHoverDisguiseSection.classList.add("mouse-inside");
+              }
+            }
+
+            function handleHoverDisguiseMouseLeave() {
+              if (boundHoverDisguiseSection instanceof HTMLElement) {
+                boundHoverDisguiseSection.classList.remove("mouse-inside");
+              }
+            }
+
+            function bindHoverDisguise(section) {
+              if (!(section instanceof HTMLElement)) {
+                return;
+              }
+              unbindHoverDisguise();
+              boundHoverDisguiseSection = section;
+              document.documentElement.addEventListener("mouseenter", handleHoverDisguiseMouseEnter);
+              document.documentElement.addEventListener("mouseleave", handleHoverDisguiseMouseLeave);
+            }
+
+            function unbindHoverDisguise() {
+              document.documentElement.removeEventListener("mouseenter", handleHoverDisguiseMouseEnter);
+              document.documentElement.removeEventListener("mouseleave", handleHoverDisguiseMouseLeave);
+              if (boundHoverDisguiseSection instanceof HTMLElement) {
+                boundHoverDisguiseSection.classList.remove("mouse-inside");
+              }
+              boundHoverDisguiseSection = null;
             }
 
             function bindReadingChrome(chrome) {
@@ -944,8 +1002,18 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 \`;
               }
 
+              const hoverOverlay = state.hoverDisguise?.enabled
+                ? \`<div class="hover-disguise-overlay">
+                    <div class="boss-state__header">
+                      <span class="boss-state__title">runtime :: service-log</span>
+                      <span class="boss-state__meta">\${escapeHtml(state.hoverDisguise.bossMetaText)}</span>
+                    </div>
+                    <div class="shell__rows shell__rows--boss">\${renderBossRows(state.hoverDisguise.bossRows)}</div>
+                  </div>\`
+                : "";
+
               return \`
-                <section class="loaded-state">
+                <section class="loaded-state\${state.hoverDisguise?.enabled ? " loaded-state--hover-disguise" : ""}">
                   <div class="reading-chrome" data-mode="expanded" data-pinned="false">
                     <button class="reading-chrome__peek" data-action="toggle-chrome" type="button" aria-label="Toggle reading chrome">
                       <span class="reading-chrome__peek-handle" aria-hidden="true"></span>
@@ -967,6 +1035,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                     </div>
                   </div>
                   <div class="shell__rows"></div>
+                  \${hoverOverlay}
                 </section>
               \`;
             }
@@ -990,6 +1059,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 };
                 const chrome = panelRoot.querySelector(".reading-chrome");
                 const rows = panelRoot.querySelector(".shell__rows");
+                const hoverSection = panelRoot.querySelector(".loaded-state--hover-disguise");
                 if (chrome instanceof HTMLElement) {
                   bindReadingChrome(chrome);
                 }
@@ -997,10 +1067,16 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                   bindRowsScroll(rows);
                   renderLoadedRowsChunked(rows, state);
                 }
+                if (hoverSection instanceof HTMLElement) {
+                  bindHoverDisguise(hoverSection);
+                } else {
+                  unbindHoverDisguise();
+                }
               } else {
                 restorePending = false;
                 unbindReadingChrome();
                 unbindRowsScroll();
+                unbindHoverDisguise();
               }
             }
 
@@ -1043,6 +1119,29 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
             window.addEventListener("beforeunload", () => {
               persistProgress(true);
+            });
+
+            let hoverDisguiseTimer = null;
+
+            function setHoverDisguise(revealed) {
+              const section = panelRoot?.querySelector(".loaded-state--hover-disguise");
+              if (!(section instanceof HTMLElement)) {
+                return;
+              }
+              section.classList.toggle("loaded-state--hover-disguise-revealed", revealed);
+            }
+
+            function onHoverActivity() {
+              clearTimeout(hoverDisguiseTimer);
+              setHoverDisguise(true);
+              hoverDisguiseTimer = window.setTimeout(() => setHoverDisguise(false), 3000);
+            }
+
+            document.addEventListener("mousemove", onHoverActivity);
+            document.addEventListener("scroll", onHoverActivity, true);
+            window.addEventListener("blur", () => {
+              clearTimeout(hoverDisguiseTimer);
+              setHoverDisguise(false);
             });
 
             window.addEventListener("message", (event) => {

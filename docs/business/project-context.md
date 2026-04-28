@@ -71,7 +71,8 @@ LogPeak
 | 手動開啟 TXT | 讀取本機文字內容 | done |
 | 類 code / log 顯示 | 建立偽裝感 | done |
 | 記住閱讀位置 | 提升連續閱讀體驗 | done |
-| 老闆鍵 | 快速切換到假工作畫面 | future |
+| 老闆鍵（快捷鍵觸發） | 快速切換到假工作畫面 | done |
+| Hover 偽裝（被動） | 滑鼠移開自動顯示 boss mode overlay | done |
 | Stealth / Normal / Focus | 調整隱蔽程度 | future |
 
 ## 限制與假設
@@ -153,6 +154,12 @@ LogPeak
 - `Phase 4` boss mode 假畫面採 generic runtime/service 語言，不直接暴露真實 TXT 檔名
 - `Phase 4` 已 archive OpenSpec change：`2026-04-27-phase-4-minimal-boss-mode`
 - `Phase 4` 主 spec 已同步到 `openspec/specs/minimal-boss-mode/spec.md`
+- Hover 偽裝（`hover-disguise-panel` change）：`logPeak.hoverDisguise` setting（預設 `true`），panel 未 hover 時常態顯示 boss mode overlay，hover 時立即顯示 TXT；純 CSS `:hover` 驅動，無 JS 事件
+- Hover 偽裝 setting 由 VS Code configuration 管理，可在 Settings UI 操作，變更即時生效不需重啟
+- `toggleHoverDisguise` command 已移除，統一由 setting 控制
+- Webview 採 `retainContextWhenHidden: true`，切換 Terminal 等其他 panel 再切回時不會遺失狀態或回到空畫面
+- Hover 偵測改由 JS `mouseenter`/`mouseleave` 驅動（綁在 `document.documentElement`），不用 CSS `:hover`；原因是 VS Code webview iframe 切換後 CSS hover 狀態不可靠，需等滑鼠移動才恢復
+- 閱讀紀錄（`workspaceState`）儲存於本機磁碟，重開機後仍存在；以 workspace 為單位隔離，不跨 workspace
 
 ## 文件同步紀錄
 
@@ -179,3 +186,6 @@ LogPeak
 | 2026-04-27 | 同步 `Phase 4` 最小老闆鍵的第一輪決議骨架 | Codex |
 | 2026-04-27 | 建立 `phase-4-minimal-boss-mode` OpenSpec change 與 artifacts | Codex |
 | 2026-04-27 | 完成 `Phase 4` 最小老闆鍵，sync 到主 spec 並 archive | Codex |
+| 2026-04-28 | 完成 hover-disguise-panel：被動 hover 偽裝、VS Code setting、移除 globalState 依賴 | Codex |
+| 2026-04-28 | 加入 retainContextWhenHidden，修正切換 panel 後 webview 被銷毀的問題 | Codex |
+| 2026-04-28 | 修正 hover 偵測改用 JS mouseenter/mouseleave，解決 CSS :hover 在 webview iframe 切換後不可靠的問題 | Codex |

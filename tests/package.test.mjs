@@ -47,3 +47,19 @@ test("panel assets exist", () => {
   assert.ok(fs.existsSync(path.join(root, "media", "panel.css")));
   assert.ok(fs.existsSync(path.join(root, "media", "logpeak.svg")));
 });
+
+test("logPeak.hoverDisguise setting is declared with default true", () => {
+  const config = packageJson.contributes?.configuration;
+  assert.ok(config, "contributes.configuration should exist");
+
+  const prop = config.properties?.["logPeak.hoverDisguise"];
+  assert.ok(prop, "logPeak.hoverDisguise property should be declared");
+  assert.equal(prop.type, "boolean");
+  assert.equal(prop.default, true);
+});
+
+test("toggleHoverDisguise command is not present", () => {
+  const commands = packageJson.contributes?.commands ?? [];
+  const found = commands.find((item) => item.command === "logPeak.toggleHoverDisguise");
+  assert.equal(found, undefined, "toggleHoverDisguise command should be removed");
+});
