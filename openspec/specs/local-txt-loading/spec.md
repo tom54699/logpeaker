@@ -11,12 +11,12 @@ The system SHALL show an engineer-style empty state in the `Log Peak` panel when
 - **THEN** the panel shows a `No file loaded` state
 - **THEN** the panel shows console-like guidance indicating that a local UTF-8 `.txt` source can be loaded
 
-### Requirement: Panel-based local TXT selection
-The system SHALL provide an `Open TXT` entry point inside the panel content so the user can choose a local `.txt` file.
+### Requirement: Panel-based local file selection
+The system SHALL provide an `Open TXT` entry point inside the panel content so the user can choose a local `.txt` or `.epub` file.
 
 #### Scenario: User opens the file picker from the panel
 - **WHEN** the user activates `Open TXT` from the panel
-- **THEN** the system opens a local file picker for `.txt` files
+- **THEN** the system opens a local file picker that accepts both `.txt` and `.epub` files
 
 ### Requirement: UTF-8 TXT loading
 The system SHALL load and render UTF-8 or UTF-8 with BOM `.txt` files in the panel content area.

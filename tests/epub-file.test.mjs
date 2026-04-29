@@ -131,3 +131,141 @@ test("parseEpub throws on invalid epub", () => {
     parseEpub(new Uint8Array([0x00, 0x01, 0x02]));
   });
 });
+
+// ── NCX / nav title parsing ───────────────────────────────────────────────────
+
+function buildEpubWithNcx(chapters, titles) {
+  const AdmZip = require("adm-zip");
+  const zip = new AdmZip();
+
+  zip.addFile("mimetype", Buffer.from("application/epub+zip", "utf8"));
+  zip.addFile(
+    "META-INF/container.xml",
+    Buffer.from(
+      '<?xml version="1.0"?>' +
+      '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">' +
+      '<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>' +
+      "</container>",
+      "utf8",
+    ),
+  );
+
+  let manifestItems = '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>';
+  let spineItems = "";
+  for (let i = 0; i < chapters.length; i++) {
+    const id = `ch${i + 1}`;
+    manifestItems += `<item id="${id}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`;
+    spineItems += `<itemref idref="${id}"/>`;
+  }
+
+  zip.addFile(
+    "OEBPS/content.opf",
+    Buffer.from(
+      '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<package xmlns="http://www.idpf.org/2007/opf" version="2.0">' +
+      `<manifest>${manifestItems}</manifest>` +
+      `<spine toc="ncx">${spineItems}</spine>` +
+      "</package>",
+      "utf8",
+    ),
+  );
+
+  const navPoints = titles.map((t, i) =>
+    `<navPoint id="np${i}"><navLabel><text>${t}</text></navLabel><content src="chapter${i + 1}.xhtml"/></navPoint>`
+  ).join("");
+  zip.addFile(
+    "OEBPS/toc.ncx",
+    Buffer.from(
+      '<?xml version="1.0"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">' +
+      `<navMap>${navPoints}</navMap></ncx>`,
+      "utf8",
+    ),
+  );
+
+  for (let i = 0; i < chapters.length; i++) {
+    zip.addFile(
+      `OEBPS/chapter${i + 1}.xhtml`,
+      Buffer.from(`<?xml version="1.0"?><html><body><p>${chapters[i]}</p></body></html>`, "utf8"),
+    );
+  }
+
+  return zip.toBuffer();
+}
+
+function buildEpubWithNav(chapters, titles) {
+  const AdmZip = require("adm-zip");
+  const zip = new AdmZip();
+
+  zip.addFile("mimetype", Buffer.from("application/epub+zip", "utf8"));
+  zip.addFile(
+    "META-INF/container.xml",
+    Buffer.from(
+      '<?xml version="1.0"?>' +
+      '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">' +
+      '<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>' +
+      "</container>",
+      "utf8",
+    ),
+  );
+
+  let manifestItems = '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>';
+  let spineItems = "";
+  for (let i = 0; i < chapters.length; i++) {
+    const id = `ch${i + 1}`;
+    manifestItems += `<item id="${id}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`;
+    spineItems += `<itemref idref="${id}"/>`;
+  }
+
+  zip.addFile(
+    "OEBPS/content.opf",
+    Buffer.from(
+      '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<package xmlns="http://www.idpf.org/2007/opf" version="3.0">' +
+      `<manifest>${manifestItems}</manifest>` +
+      `<spine>${spineItems}</spine>` +
+      "</package>",
+      "utf8",
+    ),
+  );
+
+  const liItems = titles.map((t, i) =>
+    `<li><a href="chapter${i + 1}.xhtml">${t}</a></li>`
+  ).join("");
+  zip.addFile(
+    "OEBPS/nav.xhtml",
+    Buffer.from(
+      '<?xml version="1.0"?><html xmlns:epub="http://www.idpf.org/2007/ops">' +
+      '<body><nav epub:type="toc"><ol>' + liItems + '</ol></nav></body></html>',
+      "utf8",
+    ),
+  );
+
+  for (let i = 0; i < chapters.length; i++) {
+    zip.addFile(
+      `OEBPS/chapter${i + 1}.xhtml`,
+      Buffer.from(`<?xml version="1.0"?><html><body><p>${chapters[i]}</p></body></html>`, "utf8"),
+    );
+  }
+
+  return zip.toBuffer();
+}
+
+test("parseEpub reads chapter titles from NCX", () => {
+  const epubBytes = buildEpubWithNcx(["第一章", "第二章"], ["序章", "第一回"]);
+  const chapters = parseEpub(new Uint8Array(epubBytes));
+  assert.equal(chapters[0].title, "序章");
+  assert.equal(chapters[1].title, "第一回");
+});
+
+test("parseEpub reads chapter titles from EPUB3 nav", () => {
+  const epubBytes = buildEpubWithNav(["ch1", "ch2"], ["Introduction", "Chapter One"]);
+  const chapters = parseEpub(new Uint8Array(epubBytes));
+  assert.equal(chapters[0].title, "Introduction");
+  assert.equal(chapters[1].title, "Chapter One");
+});
+
+test("parseEpub falls back to 第 N 章 when no NCX or nav", () => {
+  const epubBytes = buildMinimalEpub(["content"]);
+  const chapters = parseEpub(new Uint8Array(epubBytes));
+  assert.equal(chapters[0].title, "第 1 章");
+});

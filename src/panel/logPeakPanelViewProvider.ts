@@ -128,6 +128,9 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       mode?: string;
       pinned?: boolean;
       direction?: string;
+      index?: number;
+      nextIndex?: number;
+      prevIndex?: number;
     }) => {
       if (message.type === "openTxt") {
         await this.openTxtFile();
@@ -157,8 +160,20 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
         });
       }
 
-      if (message.type === "navigateChapter" && message.direction) {
-        await this.navigateChapter(message.direction as "prev" | "next");
+      if (message.type === "navigateChapter") {
+        if (typeof message.index === "number") {
+          await this.navigateChapterToIndex(message.index);
+        } else if (message.direction) {
+          await this.navigateChapter(message.direction as "prev" | "next");
+        }
+      }
+
+      if (message.type === "requestChapterAppend" && typeof message.nextIndex === "number") {
+        await this.appendChapterToWebview(message.nextIndex);
+      }
+
+      if (message.type === "requestChapterPrepend" && typeof message.prevIndex === "number") {
+        await this.prependChapterToWebview(message.prevIndex);
       }
     });
 
@@ -327,6 +342,27 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
   }
 
+  private async navigateChapterToIndex(index: number): Promise<void> {
+    if (this.state.kind !== "loaded") {
+      return;
+    }
+    const { chapters } = this.state;
+    if (index < 0 || index >= chapters.length) {
+      return;
+    }
+    this.state = { ...this.state, currentChapterIndex: index, restoreTarget: null };
+    if (this.currentSession) {
+      this.currentSession = createReadingSession({
+        ...this.currentSession,
+        scrollTop: 0,
+        topLine: 1,
+        chapterIndex: index,
+      });
+      await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
+    }
+    this.render();
+  }
+
   private async navigateChapter(direction: "prev" | "next"): Promise<void> {
     if (this.state.kind !== "loaded") {
       return;
@@ -339,8 +375,44 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    this.state = { ...this.state, currentChapterIndex: nextIndex, restoreTarget: null };
+    await this.navigateChapterToIndex(nextIndex);
+  }
 
+  private async prependChapterToWebview(prevIndex: number): Promise<void> {
+    if (this.state.kind !== "loaded" || !this.view) {
+      return;
+    }
+    const { chapters } = this.state;
+    if (prevIndex < 0 || prevIndex >= chapters.length) {
+      return;
+    }
+    this.state = { ...this.state, currentChapterIndex: prevIndex, restoreTarget: null };
+    if (this.currentSession) {
+      this.currentSession = createReadingSession({
+        ...this.currentSession,
+        scrollTop: 0,
+        topLine: 1,
+        chapterIndex: prevIndex,
+      });
+      await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
+    }
+    await this.view.webview.postMessage({
+      type: "chapterPrepend",
+      content: chapters[prevIndex].content,
+      chapterIndex: prevIndex,
+      totalChapters: chapters.length,
+    });
+  }
+
+  private async appendChapterToWebview(nextIndex: number): Promise<void> {
+    if (this.state.kind !== "loaded" || !this.view) {
+      return;
+    }
+    const { chapters } = this.state;
+    if (nextIndex < 0 || nextIndex >= chapters.length) {
+      return;
+    }
+    this.state = { ...this.state, currentChapterIndex: nextIndex, restoreTarget: null };
     if (this.currentSession) {
       this.currentSession = createReadingSession({
         ...this.currentSession,
@@ -350,8 +422,12 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       });
       await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
     }
-
-    this.render();
+    await this.view.webview.postMessage({
+      type: "chapterAppend",
+      content: chapters[nextIndex].content,
+      chapterIndex: nextIndex,
+      totalChapters: chapters.length,
+    });
   }
 
   private async enterBossMode(): Promise<void> {
@@ -489,6 +565,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             let chromeSyncFrame = null;
             let rowsRenderToken = 0;
             let restorePending = false;
+            let appendPending = false;
+            let prependPending = false;
             let latestProgress = {
               scrollTop: 0,
               topLine: 1,
@@ -601,9 +679,63 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               });
             }
 
+            function tryPrependPrevChapter() {
+              if (
+                currentRenderedState.kind !== "loaded" ||
+                prependPending ||
+                restorePending
+              ) {
+                return;
+              }
+              const curIdx = currentRenderedState.currentChapterIndex ?? 0;
+              if (curIdx <= 0) {
+                return;
+              }
+              if (!(boundRows instanceof HTMLElement)) {
+                return;
+              }
+              if (boundRows.scrollTop === 0) {
+                prependPending = true;
+                vscode.postMessage({ type: "requestChapterPrepend", prevIndex: curIdx - 1 });
+              }
+            }
+
+            function tryAppendNextChapter() {
+              if (
+                currentRenderedState.kind !== "loaded" ||
+                appendPending ||
+                restorePending
+              ) {
+                return;
+              }
+              const totalChapters = currentRenderedState.chapters?.length ?? 1;
+              const curIdx = currentRenderedState.currentChapterIndex ?? 0;
+              if (totalChapters <= 1 || curIdx >= totalChapters - 1) {
+                return;
+              }
+              if (!(boundRows instanceof HTMLElement)) {
+                return;
+              }
+              const atBottom = boundRows.scrollHeight <= boundRows.clientHeight ||
+                boundRows.scrollTop + boundRows.clientHeight >= boundRows.scrollHeight - 8;
+              if (atBottom) {
+                appendPending = true;
+                vscode.postMessage({ type: "requestChapterAppend", nextIndex: curIdx + 1 });
+              }
+            }
+
             function handleRowsScroll() {
               scheduleReadingChromeSync();
               persistProgress(false);
+              tryAppendNextChapter();
+            }
+
+            function handleRowsWheel(event) {
+              if (event.deltaY > 0) {
+                tryAppendNextChapter();
+              } else if (event.deltaY < 0) {
+                tryPrependPrevChapter();
+              }
             }
 
             function cancelPendingRestore() {
@@ -633,14 +765,14 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               if (boundRows instanceof HTMLElement) {
                 boundRows.removeEventListener("scroll", handleRowsScroll);
-                boundRows.removeEventListener("wheel", handleRowsIntent);
+                boundRows.removeEventListener("wheel", handleRowsWheel);
                 boundRows.removeEventListener("pointerdown", handleRowsIntent);
                 boundRows.removeEventListener("touchstart", handleRowsIntent);
               }
 
               boundRows = rows;
               rows.addEventListener("scroll", handleRowsScroll, { passive: true });
-              rows.addEventListener("wheel", handleRowsIntent, { passive: true });
+              rows.addEventListener("wheel", handleRowsWheel, { passive: true });
               rows.addEventListener("pointerdown", handleRowsIntent, { passive: true });
               rows.addEventListener("touchstart", handleRowsIntent, { passive: true });
               syncReadingChrome();
@@ -649,7 +781,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             function unbindRowsScroll() {
               if (boundRows instanceof HTMLElement) {
                 boundRows.removeEventListener("scroll", handleRowsScroll);
-                boundRows.removeEventListener("wheel", handleRowsIntent);
+                boundRows.removeEventListener("wheel", handleRowsWheel);
                 boundRows.removeEventListener("pointerdown", handleRowsIntent);
                 boundRows.removeEventListener("touchstart", handleRowsIntent);
               }
@@ -1063,11 +1195,21 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               const totalChapters = state.chapters?.length ?? 1;
               const chapterIndex = state.currentChapterIndex ?? 0;
-              const chapterNav = totalChapters > 1
-                ? \`<div class="chapter-nav">
+              const hasMultipleChapters = totalChapters > 1;
+              const tocList = hasMultipleChapters
+                ? (state.chapters ?? []).map((ch, i) =>
+                    \`<button class="toc-dropdown__item\${i === chapterIndex ? " toc-dropdown__item--active" : ""}" data-action="goto-chapter" data-index="\${i}" type="button">\${escapeHtml(ch.title)}</button>\`
+                  ).join("")
+                : "";
+              const tocDropdown = hasMultipleChapters
+                ? \`<div class="toc-dropdown" role="listbox">\${tocList}</div>\`
+                : "";
+              const chapterNavRow = hasMultipleChapters
+                ? \`<div class="chapter-nav-row">
                     <button class="chapter-nav__btn" data-action="prev-chapter" type="button"\${chapterIndex === 0 ? " disabled" : ""}>&#8592;</button>
-                    <span class="chapter-nav__label">stream-offset: \${String(chapterIndex + 1).padStart(3, "0")}/\${String(totalChapters).padStart(3, "0")}</span>
+                    <button class="chapter-nav__label-btn" data-action="toggle-toc" type="button">stream-offset: \${String(chapterIndex + 1).padStart(3, "0")}/\${String(totalChapters).padStart(3, "0")} &#9660;</button>
                     <button class="chapter-nav__btn" data-action="next-chapter" type="button"\${chapterIndex === totalChapters - 1 ? " disabled" : ""}>&#8594;</button>
+                    \${tocDropdown}
                   </div>\`
                 : "";
 
@@ -1082,9 +1224,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                         <span class="reading-chrome__title">output :: log-peak.panel</span>
                         <span class="reading-chrome__meta">\${escapeHtml(state.metaText)}</span>
                       </div>
-                      \${chapterNav}
                       <div class="reading-chrome__toolbar">
-                        <span class="reading-chrome__chip">\${escapeHtml(state.toolbarSourceLabel)}</span>
+                        \${hasMultipleChapters ? chapterNavRow : \`<span class="reading-chrome__chip">\${escapeHtml(state.toolbarSourceLabel)}</span>\`}
                         <div class="reading-chrome__actions">
                           <button class="reading-chrome__action" data-action="open-txt" type="button">Open TXT</button>
                           <button class="reading-chrome__action reading-chrome__action--ghost" data-action="toggle-chrome" type="button">
@@ -1153,6 +1294,13 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               }
             }
 
+            function closeTocDropdown() {
+              const toc = panelRoot?.querySelector(".toc-dropdown");
+              if (toc instanceof HTMLElement) {
+                toc.removeAttribute("data-open");
+              }
+            }
+
             document.addEventListener("click", (event) => {
               const target = event.target;
               if (!(target instanceof HTMLElement)) {
@@ -1161,6 +1309,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
               if (target.closest("[data-action='open-txt']")) {
                 vscode.postMessage({ type: "openTxt" });
+                closeTocDropdown();
                 return;
               }
 
@@ -1168,14 +1317,49 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 readingChromeState.pinned = !readingChromeState.pinned;
                 readingChromeState.hovered = false;
                 syncReadingChrome(readingChromeState.pinned ? "expanded" : undefined);
+                closeTocDropdown();
+                return;
               }
 
               if (target.closest("[data-action='prev-chapter']")) {
                 vscode.postMessage({ type: "navigateChapter", direction: "prev" });
+                closeTocDropdown();
+                return;
               }
 
               if (target.closest("[data-action='next-chapter']")) {
                 vscode.postMessage({ type: "navigateChapter", direction: "next" });
+                closeTocDropdown();
+                return;
+              }
+
+              if (target.closest("[data-action='toggle-toc']")) {
+                const toc = panelRoot?.querySelector(".toc-dropdown");
+                if (toc instanceof HTMLElement) {
+                  if (toc.hasAttribute("data-open")) {
+                    toc.removeAttribute("data-open");
+                  } else {
+                    toc.setAttribute("data-open", "");
+                  }
+                }
+                return;
+              }
+
+              if (target.closest("[data-action='goto-chapter']")) {
+                const btn = target.closest("[data-action='goto-chapter']");
+                if (btn instanceof HTMLElement && btn.dataset.index !== undefined) {
+                  const idx = parseInt(btn.dataset.index, 10);
+                  if (!isNaN(idx)) {
+                    vscode.postMessage({ type: "navigateChapter", index: idx });
+                  }
+                }
+                closeTocDropdown();
+                return;
+              }
+
+              // Close TOC when clicking outside
+              if (!target.closest(".chapter-nav-row")) {
+                closeTocDropdown();
               }
             });
 
@@ -1212,10 +1396,99 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               setHoverDisguise(false);
             });
 
+            function appendChapterRows(rowsElement, content, chapterIndex, totalChapters) {
+              if (!(rowsElement instanceof HTMLElement)) {
+                return;
+              }
+              // Chapter separator
+              rowsElement.insertAdjacentHTML("beforeend",
+                \`<div class="row row--chapter-sep" data-line="0" data-index="" data-tag="stream-\${String(chapterIndex + 1).padStart(3, "0")}"><span class="row__content"> </span></div>\`
+              );
+              const rows = content.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n");
+              const lineDigits = String(rows.length).length;
+              let html = "";
+              for (let index = 0; index < rows.length; index += 1) {
+                const row = rows[index];
+                const decoration = getRowDecoration(row, index);
+                const tag = decoration.tag;
+                const tone = decoration.tone;
+                html += \`<div class="row\${tag ? " row--tagged" : ""} row--tone-\${tone}" data-line="\${index + 1}" data-index="\${String(index + 1).padStart(lineDigits, "0")}" data-tag="\${escapeHtml(tag)}"><span class="row__content">\${escapeHtml(row || " ")}</span></div>\`;
+              }
+              rowsElement.insertAdjacentHTML("beforeend", html);
+              updateNavState(chapterIndex, totalChapters);
+              appendPending = false;
+            }
+
+            function updateNavState(chapterIndex, totalChapters) {
+              const labelBtn = panelRoot?.querySelector(".chapter-nav__label-btn");
+              if (labelBtn instanceof HTMLElement) {
+                labelBtn.textContent = \`stream-offset: \${String(chapterIndex + 1).padStart(3, "0")}/\${String(totalChapters).padStart(3, "0")} ▼\`;
+              }
+              const prevBtn = panelRoot?.querySelector("[data-action='prev-chapter']");
+              const nextBtn = panelRoot?.querySelector("[data-action='next-chapter']");
+              if (prevBtn instanceof HTMLElement) {
+                if (chapterIndex === 0) { prevBtn.setAttribute("disabled", ""); } else { prevBtn.removeAttribute("disabled"); }
+              }
+              if (nextBtn instanceof HTMLElement) {
+                if (chapterIndex >= totalChapters - 1) { nextBtn.setAttribute("disabled", ""); } else { nextBtn.removeAttribute("disabled"); }
+              }
+              const tocEl = panelRoot?.querySelector(".toc-dropdown");
+              if (tocEl instanceof HTMLElement) {
+                tocEl.querySelectorAll(".toc-dropdown__item").forEach((item, i) => {
+                  if (item instanceof HTMLElement) {
+                    item.classList.toggle("toc-dropdown__item--active", i === chapterIndex);
+                  }
+                });
+              }
+              if (currentRenderedState.kind === "loaded") {
+                currentRenderedState.currentChapterIndex = chapterIndex;
+              }
+            }
+
+            function prependChapterRows(rowsElement, content, chapterIndex, totalChapters) {
+              if (!(rowsElement instanceof HTMLElement)) {
+                return;
+              }
+              const rows = content.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n");
+              const lineDigits = String(rows.length).length;
+              let html = "";
+              for (let index = 0; index < rows.length; index += 1) {
+                const row = rows[index];
+                const decoration = getRowDecoration(row, index);
+                const tag = decoration.tag;
+                const tone = decoration.tone;
+                html += \`<div class="row\${tag ? " row--tagged" : ""} row--tone-\${tone}" data-line="\${index + 1}" data-index="\${String(index + 1).padStart(lineDigits, "0")}" data-tag="\${escapeHtml(tag)}"><span class="row__content">\${escapeHtml(row || " ")}</span></div>\`;
+              }
+              // Chapter separator after the prepended content
+              html += \`<div class="row row--chapter-sep" data-line="0" data-index="" data-tag="stream-\${String(chapterIndex + 2).padStart(3, "0")}"><span class="row__content"> </span></div>\`;
+              const prevScrollHeight = rowsElement.scrollHeight;
+              rowsElement.insertAdjacentHTML("afterbegin", html);
+              // Adjust scrollTop so the visible content doesn't jump
+              rowsElement.scrollTop += rowsElement.scrollHeight - prevScrollHeight;
+              updateNavState(chapterIndex, totalChapters);
+              prependPending = false;
+            }
+
             window.addEventListener("message", (event) => {
               const message = event.data;
               if (message?.type === "renderState") {
                 render(message.state);
+                return;
+              }
+
+              if (message?.type === "chapterAppend") {
+                const rows = panelRoot?.querySelector(".shell__rows");
+                if (rows instanceof HTMLElement) {
+                  appendChapterRows(rows, message.content, message.chapterIndex, message.totalChapters);
+                }
+                return;
+              }
+
+              if (message?.type === "chapterPrepend") {
+                const rows = panelRoot?.querySelector(".shell__rows");
+                if (rows instanceof HTMLElement) {
+                  prependChapterRows(rows, message.content, message.chapterIndex, message.totalChapters);
+                }
                 return;
               }
 

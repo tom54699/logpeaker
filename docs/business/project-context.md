@@ -73,11 +73,13 @@ LogPeak
 | 記住閱讀位置 | 提升連續閱讀體驗 | done |
 | 老闆鍵（快捷鍵觸發） | 快速切換到假工作畫面 | done |
 | Hover 偽裝（被動） | 滑鼠移開自動顯示 boss mode overlay | done |
+| EPUB 支援 | 開啟 .epub 檔案，章節解析與導覽 | done |
+| EPUB 章節 UX | TOC dropdown、滾輪自動換章、標題解析 | done |
 | Stealth / Normal / Focus | 調整隱蔽程度 | future |
 
 ## 限制與假設
 
-- 第一版只支援 `.txt`
+- 目前支援 `.txt` 與 `.epub` 兩種格式
 - 第一版先優先支援底部 Panel，不做 editor tab
 - 初期視覺重點是像 Output / Log Viewer，而不是像 Terminal
 - 需求討論採小步確認，不一次定完整產品
@@ -189,3 +191,7 @@ LogPeak
 | 2026-04-28 | 完成 hover-disguise-panel：被動 hover 偽裝、VS Code setting、移除 globalState 依賴 | Codex |
 | 2026-04-28 | 加入 retainContextWhenHidden，修正切換 panel 後 webview 被銷毀的問題 | Codex |
 | 2026-04-28 | 修正 hover 偵測改用 JS mouseenter/mouseleave，解決 CSS :hover 在 webview iframe 切換後不可靠的問題 | Codex |
+| 2026-04-29 | 完成 epub-chapter-reader：EPUB 開檔、章節解析、章節導覽 UI、session store chapterIndex | Codex |
+| 2026-04-29 | 完成 epub-reader-ux：NCX/nav 標題解析、TOC dropdown、滾輪自動換章、章節 append/prepend、nav.xhtml 排除、重複標題去除 | Codex |
+| 2026-04-29 | 完成 epub-chapter-reader：EPUB 開檔、章節解析、章節導覽 UI、session store chapterIndex | Codex |
+| 2026-04-29 | 完成 epub-reader-ux：NCX/nav 標題解析、TOC dropdown、滾輪自動換章、章節 append/prepend、nav.xhtml 排除、重複標題去除 | Codex |

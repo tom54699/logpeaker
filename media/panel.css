@@ -152,7 +152,7 @@ button {
   flex: 0 0 auto;
   border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 22%, transparent);
   background: color-mix(in srgb, var(--vscode-editor-background) 96%, var(--vscode-panel-border));
-  overflow: clip;
+  overflow: visible;
 }
 
 .reading-chrome__peek {
@@ -202,22 +202,13 @@ button {
   color: color-mix(in srgb, var(--vscode-descriptionForeground) 92%, transparent);
 }
 
-.chapter-nav {
+.chapter-nav-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 12%, transparent);
-  color: var(--vscode-descriptionForeground);
-  font-size: 11px;
-  letter-spacing: 0.03em;
-}
-
-.chapter-nav__label {
+  gap: 4px;
   flex: 1;
-  text-align: center;
-  font-family: var(--vscode-editor-font-family, monospace);
-  opacity: 0.75;
+  min-width: 0;
 }
 
 .chapter-nav__btn {
@@ -225,10 +216,13 @@ button {
   border: none;
   cursor: pointer;
   color: var(--vscode-descriptionForeground);
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 2px;
   opacity: 0.7;
+  font: inherit;
+  font-size: 11px;
   transition: opacity 0.1s;
+  flex-shrink: 0;
 }
 
 .chapter-nav__btn:hover:not(:disabled) {
@@ -239,6 +233,78 @@ button {
 .chapter-nav__btn:disabled {
   opacity: 0.25;
   cursor: default;
+}
+
+.chapter-nav__label-btn {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--vscode-descriptionForeground) 90%, transparent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  opacity: 0.8;
+  transition: opacity 0.1s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-nav__label-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--vscode-toolbar-hoverBackground) 60%, transparent);
+}
+
+.toc-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+.toc-dropdown[data-open] {
+  display: block;
+}
+
+.toc-dropdown__item {
+  display: block;
+  width: 100%;
+  padding: 4px 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-dropdown__item:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-list-hoverForeground, var(--vscode-editor-foreground));
+}
+
+.toc-dropdown__item--active {
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-editor-foreground));
+  background: color-mix(in srgb, var(--vscode-list-activeSelectionBackground) 30%, transparent);
 }
 
 .reading-chrome__toolbar {
@@ -458,4 +524,11 @@ button {
 
 .row--code .row__content {
   color: color-mix(in srgb, var(--vscode-editor-foreground) 92%, var(--vscode-terminal-ansiGreen));
+}
+
+.row--chapter-sep {
+  border-top: 1px solid color-mix(in srgb, var(--vscode-panel-border) 30%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 30%, transparent);
+  margin: 4px 0;
+  opacity: 0.6;
 }

@@ -9,7 +9,7 @@ The system SHALL persist the latest reading session for the current workspace in
 #### Scenario: Reading session is stored in the current workspace scope
 - **WHEN** the user reads a TXT file in `Log Peak`
 - **THEN** the system stores the latest reading session in workspace-scoped extension state
-- **THEN** the stored session includes `fileUri`, `fileName`, `scrollTop`, `topLine`, and `fileMtimeMs`
+- **THEN** the stored session includes `fileUri`, `fileName`, `scrollTop`, `topLine`, `fileMtimeMs`, and `chapterIndex` (0-based; omitted or 0 for TXT)
 
 ### Requirement: Restore on panel open
 The system SHALL attempt to restore the last reading session when the `Log Peak` panel is opened.
@@ -34,3 +34,8 @@ The system SHALL restore the reading position for a valid stored session closely
 - **WHEN** the stored file is still valid for restoration
 - **THEN** the system restores the content view near the prior reading position
 - **THEN** the restoration uses the stored position fields consistently enough that the user does not need to manually relocate the previous reading point
+
+#### Scenario: Session without chapterIndex restores to first chapter
+- **WHEN** the stored session has no `chapterIndex` field (legacy TXT session)
+- **THEN** the system treats it as chapter index 0
+- **THEN** restoration proceeds normally
