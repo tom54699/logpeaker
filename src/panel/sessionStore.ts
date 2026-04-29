@@ -4,11 +4,13 @@ export type ReadingSession = {
   scrollTop: number;
   topLine: number;
   fileMtimeMs: number;
+  chapterIndex?: number;
 };
 
 export type RestoreTarget = {
   scrollTop: number;
   topLine: number;
+  chapterIndex: number;
   strategy: "exact" | "line";
 };
 
@@ -19,6 +21,7 @@ export function createReadingSession(session: ReadingSession): ReadingSession {
     scrollTop: Math.max(0, Math.floor(session.scrollTop)),
     topLine: Math.max(1, Math.floor(session.topLine)),
     fileMtimeMs: Math.max(0, Math.floor(session.fileMtimeMs)),
+    chapterIndex: Math.max(0, Math.floor(session.chapterIndex ?? 0)),
   };
 }
 
@@ -45,6 +48,7 @@ export function parseReadingSession(value: unknown): ReadingSession | null {
     scrollTop: session.scrollTop,
     topLine: session.topLine,
     fileMtimeMs: session.fileMtimeMs,
+    chapterIndex: typeof session.chapterIndex === "number" ? session.chapterIndex : 0,
   });
 }
 
@@ -55,6 +59,7 @@ export function resolveRestoreTarget(
   return {
     scrollTop: session.scrollTop,
     topLine: session.topLine,
+    chapterIndex: session.chapterIndex ?? 0,
     strategy: currentMtimeMs === session.fileMtimeMs ? "exact" : "line",
   };
 }

@@ -74,8 +74,12 @@
     "test": "npm run compile && node --test tests/**/*.test.mjs"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/node": "^22.10.2",
     "@types/vscode": "^1.90.0",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.17"
   }
 }

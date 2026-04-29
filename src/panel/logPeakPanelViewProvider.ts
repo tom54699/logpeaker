@@ -23,6 +23,7 @@ import {
   type RestoreTarget,
 } from "./sessionStore";
 import { decodeUtf8Text } from "./textFile";
+import { parseEpub, type Chapter } from "./epubFile";
 
 const READING_SESSION_KEY = "logPeak.readingSession";
 const LOG_PEAK_VISIBLE_CONTEXT_KEY = "logPeak.visible";
@@ -31,7 +32,8 @@ type LoadedPanelState =
   {
     kind: "loaded";
     fileName: string;
-    content: string;
+    chapters: Chapter[];
+    currentChapterIndex: number;
     metaText: string;
     toolbarSourceLabel: string;
     restoreTarget: RestoreTarget | null;
@@ -125,6 +127,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       topLine?: number;
       mode?: string;
       pinned?: boolean;
+      direction?: string;
     }) => {
       if (message.type === "openTxt") {
         await this.openTxtFile();
@@ -152,6 +155,10 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
           mode: message.mode,
           pinned: message.pinned,
         });
+      }
+
+      if (message.type === "navigateChapter" && message.direction) {
+        await this.navigateChapter(message.direction as "prev" | "next");
       }
     });
 
@@ -183,10 +190,10 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       canSelectFolders: false,
       canSelectMany: false,
       filters: {
-        "Text Files": ["txt"],
+        "Text & EPUB Files": ["txt", "epub"],
       },
-      openLabel: "Open TXT",
-      title: "Load a local UTF-8 TXT file",
+      openLabel: "Open",
+      title: "Load a local TXT or EPUB file",
     });
 
     const fileUri = selection?.[0];
@@ -262,7 +269,18 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
     const stat = await vscode.workspace.fs.stat(fileUri);
     const bytes = await vscode.workspace.fs.readFile(fileUri);
-    const content = decodeUtf8Text(bytes);
+    const isEpub = fileName.toLowerCase().endsWith(".epub");
+
+    let chapters: Chapter[];
+    if (isEpub) {
+      chapters = parseEpub(bytes);
+    } else {
+      const content = decodeUtf8Text(bytes);
+      chapters = [{ title: fileName, content }];
+    }
+
+    const chapterIndex = restoreTarget?.chapterIndex ?? 0;
+    const safeChapterIndex = Math.max(0, Math.min(chapterIndex, chapters.length - 1));
 
     this.currentSession = createReadingSession({
       fileUri: fileUri.toString(),
@@ -270,6 +288,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       scrollTop: restoreTarget?.scrollTop ?? 0,
       topLine: restoreTarget?.topLine ?? 1,
       fileMtimeMs: stat.mtime,
+      chapterIndex: safeChapterIndex,
     });
 
     await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
@@ -277,7 +296,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     this.state = {
       kind: "loaded",
       fileName,
-      content,
+      chapters,
+      currentChapterIndex: safeChapterIndex,
       metaText: formatLoadedMeta(fileName),
       toolbarSourceLabel: getToolbarSourceLabel(),
       restoreTarget,
@@ -301,9 +321,37 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       ...this.currentSession,
       scrollTop,
       topLine,
+      chapterIndex: this.state.currentChapterIndex,
     });
 
     await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
+  }
+
+  private async navigateChapter(direction: "prev" | "next"): Promise<void> {
+    if (this.state.kind !== "loaded") {
+      return;
+    }
+
+    const { chapters, currentChapterIndex } = this.state;
+    const nextIndex = direction === "prev" ? currentChapterIndex - 1 : currentChapterIndex + 1;
+
+    if (nextIndex < 0 || nextIndex >= chapters.length) {
+      return;
+    }
+
+    this.state = { ...this.state, currentChapterIndex: nextIndex, restoreTarget: null };
+
+    if (this.currentSession) {
+      this.currentSession = createReadingSession({
+        ...this.currentSession,
+        scrollTop: 0,
+        topLine: 1,
+        chapterIndex: nextIndex,
+      });
+      await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
+    }
+
+    this.render();
   }
 
   private async enterBossMode(): Promise<void> {
@@ -883,7 +931,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 scrollTop: state.restoreTarget?.scrollTop ?? 0,
                 topLine: state.restoreTarget?.topLine ?? 1,
               };
-              const rows = state.content.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n");
+              const currentContent = state.chapters?.[state.currentChapterIndex]?.content ?? "";
+              const rows = currentContent.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n");
               const lineDigits = String(rows.length).length;
               let nextIndex = 0;
 
@@ -1012,6 +1061,16 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                   </div>\`
                 : "";
 
+              const totalChapters = state.chapters?.length ?? 1;
+              const chapterIndex = state.currentChapterIndex ?? 0;
+              const chapterNav = totalChapters > 1
+                ? \`<div class="chapter-nav">
+                    <button class="chapter-nav__btn" data-action="prev-chapter" type="button"\${chapterIndex === 0 ? " disabled" : ""}>&#8592;</button>
+                    <span class="chapter-nav__label">stream-offset: \${String(chapterIndex + 1).padStart(3, "0")}/\${String(totalChapters).padStart(3, "0")}</span>
+                    <button class="chapter-nav__btn" data-action="next-chapter" type="button"\${chapterIndex === totalChapters - 1 ? " disabled" : ""}>&#8594;</button>
+                  </div>\`
+                : "";
+
               return \`
                 <section class="loaded-state\${state.hoverDisguise?.enabled ? " loaded-state--hover-disguise" : ""}">
                   <div class="reading-chrome" data-mode="expanded" data-pinned="false">
@@ -1023,6 +1082,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                         <span class="reading-chrome__title">output :: log-peak.panel</span>
                         <span class="reading-chrome__meta">\${escapeHtml(state.metaText)}</span>
                       </div>
+                      \${chapterNav}
                       <div class="reading-chrome__toolbar">
                         <span class="reading-chrome__chip">\${escapeHtml(state.toolbarSourceLabel)}</span>
                         <div class="reading-chrome__actions">
@@ -1108,6 +1168,14 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 readingChromeState.pinned = !readingChromeState.pinned;
                 readingChromeState.hovered = false;
                 syncReadingChrome(readingChromeState.pinned ? "expanded" : undefined);
+              }
+
+              if (target.closest("[data-action='prev-chapter']")) {
+                vscode.postMessage({ type: "navigateChapter", direction: "prev" });
+              }
+
+              if (target.closest("[data-action='next-chapter']")) {
+                vscode.postMessage({ type: "navigateChapter", direction: "next" });
               }
             });
 
