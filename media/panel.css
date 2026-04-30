@@ -10,7 +10,7 @@ body {
   background: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
   font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 12px;
+  font-size: var(--lp-font-size, 13px);
   overflow: hidden;
 }
 
@@ -455,7 +455,7 @@ button {
   gap: 10px;
   align-items: start;
   padding: 3px 12px;
-  line-height: 1.55;
+  line-height: var(--lp-line-height, 1.6);
   border-left: 2px solid transparent;
   border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 10%, transparent);
 }
@@ -531,4 +531,21 @@ button {
   border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 30%, transparent);
   margin: 4px 0;
   opacity: 0.6;
+}
+
+.display-setting-select {
+  padding: 1px 4px;
+  border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 42%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--vscode-button-secondaryBackground) 80%, transparent);
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.display-setting-select:hover {
+  border-color: color-mix(in srgb, var(--vscode-panel-border) 70%, transparent);
+  color: var(--vscode-editor-foreground);
 }

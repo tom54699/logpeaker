@@ -26,7 +26,15 @@ import { decodeUtf8Text } from "./textFile";
 import { parseEpub, type Chapter } from "./epubFile";
 
 const READING_SESSION_KEY = "logPeak.readingSession";
+const DISPLAY_SETTINGS_KEY = "logPeak.displaySettings";
 const LOG_PEAK_VISIBLE_CONTEXT_KEY = "logPeak.visible";
+
+type DisplaySettings = {
+  fontSize: number;
+  lineHeight: number;
+};
+
+const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = { fontSize: 13, lineHeight: 1.6 };
 
 type LoadedPanelState =
   {
@@ -38,6 +46,7 @@ type LoadedPanelState =
     toolbarSourceLabel: string;
     restoreTarget: RestoreTarget | null;
     chromeState: ReadingChromeSnapshot;
+    displaySettings: DisplaySettings;
     hoverDisguise: {
       enabled: boolean;
       bossMetaText: string;
@@ -131,6 +140,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       index?: number;
       nextIndex?: number;
       prevIndex?: number;
+      key?: string;
+      value?: number;
     }) => {
       if (message.type === "openTxt") {
         await this.openTxtFile();
@@ -174,6 +185,14 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
       if (message.type === "requestChapterPrepend" && typeof message.prevIndex === "number") {
         await this.prependChapterToWebview(message.prevIndex);
+      }
+
+      if (
+        message.type === "setDisplaySetting" &&
+        (message.key === "fontSize" || message.key === "lineHeight") &&
+        typeof message.value === "number"
+      ) {
+        await this.setDisplaySetting(message.key, message.value);
       }
     });
 
@@ -308,6 +327,9 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
     await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
 
+    const displaySettings: DisplaySettings =
+      this.workspaceState.get<DisplaySettings>(DISPLAY_SETTINGS_KEY) ?? DEFAULT_DISPLAY_SETTINGS;
+
     this.state = {
       kind: "loaded",
       fileName,
@@ -317,6 +339,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       toolbarSourceLabel: getToolbarSourceLabel(),
       restoreTarget,
       chromeState: this.currentReadingChromeState,
+      displaySettings,
       hoverDisguise: {
         enabled: this.readHoverDisguiseSetting(),
         bossMetaText: formatBossModeMeta(fileName),
@@ -340,6 +363,20 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
     });
 
     await this.workspaceState.update(READING_SESSION_KEY, this.currentSession);
+  }
+
+  private async setDisplaySetting(key: keyof DisplaySettings, value: number): Promise<void> {
+    if (this.state.kind !== "loaded") {
+      return;
+    }
+    const displaySettings: DisplaySettings = { ...this.state.displaySettings, [key]: value };
+    this.state = { ...this.state, displaySettings };
+    await this.workspaceState.update(DISPLAY_SETTINGS_KEY, displaySettings);
+    this.view?.webview.postMessage({
+      type: "applyDisplaySettings",
+      fontSize: displaySettings.fontSize,
+      lineHeight: displaySettings.lineHeight,
+    });
   }
 
   private async navigateChapterToIndex(index: number): Promise<void> {
@@ -1213,6 +1250,18 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                   </div>\`
                 : "";
 
+              const ds = state.displaySettings || { fontSize: 13, lineHeight: 1.6 };
+              const fontSizes = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
+              const fontSizeOptions = fontSizes.map(s =>
+                \`<option value="\${s}"\${ds.fontSize === s ? " selected" : ""}>\${s}px</option>\`
+              ).join("");
+              const fontSizeSelect = \`<select class="display-setting-select" data-action="set-font-size" aria-label="Font size">\${fontSizeOptions}</select>\`;
+              const lineHeights = [1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.2];
+              const lineHeightOptions = lineHeights.map(h =>
+                \`<option value="\${h}"\${ds.lineHeight === h ? " selected" : ""}>\${h}</option>\`
+              ).join("");
+              const lineHeightSelect = \`<select class="display-setting-select" data-action="set-line-height" aria-label="Line height">\${lineHeightOptions}</select>\`;
+
               return \`
                 <section class="loaded-state\${state.hoverDisguise?.enabled ? " loaded-state--hover-disguise" : ""}">
                   <div class="reading-chrome" data-mode="expanded" data-pinned="false">
@@ -1227,6 +1276,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                       <div class="reading-chrome__toolbar">
                         \${hasMultipleChapters ? chapterNavRow : \`<span class="reading-chrome__chip">\${escapeHtml(state.toolbarSourceLabel)}</span>\`}
                         <div class="reading-chrome__actions">
+                          \${fontSizeSelect}
+                          \${lineHeightSelect}
                           <button class="reading-chrome__action" data-action="open-txt" type="button">Open TXT</button>
                           <button class="reading-chrome__action reading-chrome__action--ghost" data-action="toggle-chrome" type="button">
                             <span data-role="chrome-toggle-label">keep open</span>
@@ -1363,6 +1414,23 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               }
             });
 
+            document.addEventListener("change", (event) => {
+              const target = event.target;
+              if (!(target instanceof HTMLSelectElement)) {
+                return;
+              }
+              const action = target.dataset.action;
+              const value = parseFloat(target.value);
+              if (isNaN(value)) {
+                return;
+              }
+              if (action === "set-font-size") {
+                vscode.postMessage({ type: "setDisplaySetting", key: "fontSize", value });
+              } else if (action === "set-line-height") {
+                vscode.postMessage({ type: "setDisplaySetting", key: "lineHeight", value });
+              }
+            });
+
             document.addEventListener("visibilitychange", () => {
               if (document.hidden) {
                 persistProgress(true);
@@ -1492,6 +1560,12 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 return;
               }
 
+              if (message?.type === "applyDisplaySettings") {
+                document.body.style.setProperty("--lp-font-size", message.fontSize + "px");
+                document.body.style.setProperty("--lp-line-height", String(message.lineHeight));
+                return;
+              }
+
               if (message?.type === "prepareBossMode") {
                 if (currentRenderedState.kind === "loaded") {
                   persistProgress(true);
@@ -1509,6 +1583,11 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 }
               }
             });
+
+            if (initialState.kind === "loaded" && initialState.displaySettings) {
+              document.body.style.setProperty("--lp-font-size", initialState.displaySettings.fontSize + "px");
+              document.body.style.setProperty("--lp-line-height", String(initialState.displaySettings.lineHeight));
+            }
 
             render(initialState);
 

@@ -146,6 +146,39 @@ OpenSpec 狀態：
 - 已 archive：`openspec/changes/archive/2026-04-27-phase-4-minimal-boss-mode/`
 - 已 sync 至主 spec：`openspec/specs/minimal-boss-mode/spec.md`
 
+### Small Change: Hover 偽裝
+
+- 被動 hover 偽裝（`hover-disguise-panel`）：panel 未 hover 時常態顯示 boss mode overlay，hover 時立即顯示 TXT
+- 由 `logPeak.hoverDisguise` VS Code setting 控制（預設 `true`），Settings UI 可即時生效
+- Hover 偵測改用 JS `mouseenter`/`mouseleave`（`document.documentElement`），解決 CSS `:hover` 在 webview iframe 切換後不可靠的問題
+- 加入 `retainContextWhenHidden: true`，切換其他 panel 再切回不遺失狀態
+
+### Small Change: EPUB 支援
+
+- EPUB 開檔（`.epub`）、ZIP 解析、OPF/spine 章節解析
+- NCX / EPUB3 nav 真實章節標題解析
+- TOC dropdown 章節跳轉
+- 滾輪自動換章（append/prepend 連續閱讀，不重置 scroll）
+- nav.xhtml 排除出 spine、`../` 相對路徑修正、重複標題去除
+
+OpenSpec 狀態：
+
+- 已 archive：`openspec/changes/archive/2026-04-29-epub-chapter-reader/`
+- 已 archive：`openspec/changes/archive/2026-04-29-epub-reader-ux/`
+- 已 sync 至主 spec：`openspec/specs/epub-loading/spec.md`、`openspec/specs/epub-toc-navigation/spec.md`、`openspec/specs/epub-auto-chapter-advance/spec.md`
+
+### Small Change: 顯示設定（字體大小 / 行距）
+
+- reading chrome toolbar 加入字體大小 dropdown（10–24px）與行距 dropdown（1.2–2.2）
+- 透過 CSS custom property 即時套用，不重新 render，不影響 scroll 位置
+- 設定存 `workspaceState`（key: `logPeak.displaySettings`），重開後自動恢復
+- TXT 與 EPUB 共用同一份設定
+
+OpenSpec 狀態：
+
+- 已 archive：`openspec/changes/archive/2026-04-30-reading-display-settings/`
+- 已 sync 至主 spec：`openspec/specs/reading-display-settings/spec.md`
+
 ## Later
 
 ## Future

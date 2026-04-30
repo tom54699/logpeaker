@@ -216,6 +216,6 @@ export function stripHtml(html: string): string {
     .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16)))
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n{2,}/g, "\n")
     .trim();
 }

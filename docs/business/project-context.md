@@ -75,6 +75,7 @@ LogPeak
 | Hover 偽裝（被動） | 滑鼠移開自動顯示 boss mode overlay | done |
 | EPUB 支援 | 開啟 .epub 檔案，章節解析與導覽 | done |
 | EPUB 章節 UX | TOC dropdown、滾輪自動換章、標題解析 | done |
+| 顯示設定 | 字體大小與行距 dropdown，workspaceState 持久化 | done |
 | Stealth / Normal / Focus | 調整隱蔽程度 | future |
 
 ## 限制與假設
@@ -193,5 +194,4 @@ LogPeak
 | 2026-04-28 | 修正 hover 偵測改用 JS mouseenter/mouseleave，解決 CSS :hover 在 webview iframe 切換後不可靠的問題 | Codex |
 | 2026-04-29 | 完成 epub-chapter-reader：EPUB 開檔、章節解析、章節導覽 UI、session store chapterIndex | Codex |
 | 2026-04-29 | 完成 epub-reader-ux：NCX/nav 標題解析、TOC dropdown、滾輪自動換章、章節 append/prepend、nav.xhtml 排除、重複標題去除 | Codex |
-| 2026-04-29 | 完成 epub-chapter-reader：EPUB 開檔、章節解析、章節導覽 UI、session store chapterIndex | Codex |
-| 2026-04-29 | 完成 epub-reader-ux：NCX/nav 標題解析、TOC dropdown、滾輪自動換章、章節 append/prepend、nav.xhtml 排除、重複標題去除 | Codex |
+| 2026-04-30 | 完成 reading-display-settings：字體大小與行距 dropdown，CSS custom property 即時套用，workspaceState 持久化 | Codex |
