@@ -2,8 +2,14 @@
   "name": "logpeak",
   "displayName": "Log Peak",
   "description": "A low-profile TXT reader shell for the VS Code bottom panel.",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
+  "publisher": "Moonightear",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tom54699/LogPeaker"
+  },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
   },

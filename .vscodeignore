@@ -1,0 +1,12 @@
+.vscode/**
+.github/**
+docs/**
+openspec/**
+tests/**
+src/**
+.claude/**
+.gitignore
+tsconfig.json
+**/*.ts
+**/*.map
+**/*.test.mjs
