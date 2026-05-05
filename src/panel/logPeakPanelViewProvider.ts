@@ -24,17 +24,16 @@ import {
 } from "./sessionStore";
 import { decodeUtf8Text } from "./textFile";
 import { parseEpub, type Chapter } from "./epubFile";
+import {
+  DEFAULT_DISPLAY_SETTINGS,
+  resolveContentWidthVar,
+  type DisplaySettings,
+} from "./displaySettings";
 
 const READING_SESSION_KEY = "logPeak.readingSession";
 const DISPLAY_SETTINGS_KEY = "logPeak.displaySettings";
 const LOG_PEAK_VISIBLE_CONTEXT_KEY = "logPeak.visible";
 
-type DisplaySettings = {
-  fontSize: number;
-  lineHeight: number;
-};
-
-const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = { fontSize: 13, lineHeight: 1.6 };
 
 type LoadedPanelState =
   {
@@ -189,7 +188,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
 
       if (
         message.type === "setDisplaySetting" &&
-        (message.key === "fontSize" || message.key === "lineHeight") &&
+        (message.key === "fontSize" || message.key === "lineHeight" || message.key === "contentWidth") &&
         typeof message.value === "number"
       ) {
         await this.setDisplaySetting(message.key, message.value);
@@ -376,6 +375,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
       type: "applyDisplaySettings",
       fontSize: displaySettings.fontSize,
       lineHeight: displaySettings.lineHeight,
+      contentWidth: displaySettings.contentWidth,
     });
   }
 
@@ -1250,7 +1250,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                   </div>\`
                 : "";
 
-              const ds = state.displaySettings || { fontSize: 13, lineHeight: 1.6 };
+              const ds = state.displaySettings || { fontSize: 13, lineHeight: 1.6, contentWidth: 0 };
               const fontSizes = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24];
               const fontSizeOptions = fontSizes.map(s =>
                 \`<option value="\${s}"\${ds.fontSize === s ? " selected" : ""}>\${s}px</option>\`
@@ -1261,6 +1261,12 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 \`<option value="\${h}"\${ds.lineHeight === h ? " selected" : ""}>\${h}</option>\`
               ).join("");
               const lineHeightSelect = \`<select class="display-setting-select" data-action="set-line-height" aria-label="Line height">\${lineHeightOptions}</select>\`;
+              const contentWidths = [0, 40, 50, 60, 72, 80];
+              const contentWidthLabels = { 0: "full", 40: "40ch", 50: "50ch", 60: "60ch", 72: "72ch", 80: "80ch" };
+              const contentWidthOptions = contentWidths.map(w =>
+                \`<option value="\${w}"\${(ds.contentWidth ?? 0) === w ? " selected" : ""}>\${contentWidthLabels[w]}</option>\`
+              ).join("");
+              const contentWidthSelect = \`<select class="display-setting-select" data-action="set-content-width" aria-label="Content width">\${contentWidthOptions}</select>\`;
 
               return \`
                 <section class="loaded-state\${state.hoverDisguise?.enabled ? " loaded-state--hover-disguise" : ""}">
@@ -1278,6 +1284,7 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                         <div class="reading-chrome__actions">
                           \${fontSizeSelect}
                           \${lineHeightSelect}
+                          \${contentWidthSelect}
                           <button class="reading-chrome__action" data-action="open-txt" type="button">Open TXT</button>
                           <button class="reading-chrome__action reading-chrome__action--ghost" data-action="toggle-chrome" type="button">
                             <span data-role="chrome-toggle-label">keep open</span>
@@ -1428,6 +1435,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 vscode.postMessage({ type: "setDisplaySetting", key: "fontSize", value });
               } else if (action === "set-line-height") {
                 vscode.postMessage({ type: "setDisplaySetting", key: "lineHeight", value });
+              } else if (action === "set-content-width") {
+                vscode.postMessage({ type: "setDisplaySetting", key: "contentWidth", value });
               }
             });
 
@@ -1563,6 +1572,11 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
               if (message?.type === "applyDisplaySettings") {
                 document.body.style.setProperty("--lp-font-size", message.fontSize + "px");
                 document.body.style.setProperty("--lp-line-height", String(message.lineHeight));
+                if (message.contentWidth) {
+                  document.body.style.setProperty("--lp-content-width", message.contentWidth + "ch");
+                } else {
+                  document.body.style.removeProperty("--lp-content-width");
+                }
                 return;
               }
 
@@ -1587,6 +1601,9 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
             if (initialState.kind === "loaded" && initialState.displaySettings) {
               document.body.style.setProperty("--lp-font-size", initialState.displaySettings.fontSize + "px");
               document.body.style.setProperty("--lp-line-height", String(initialState.displaySettings.lineHeight));
+              if (initialState.displaySettings.contentWidth) {
+                document.body.style.setProperty("--lp-content-width", initialState.displaySettings.contentWidth + "ch");
+              }
             }
 
             render(initialState);
