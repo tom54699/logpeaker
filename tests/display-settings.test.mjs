@@ -18,12 +18,12 @@ test("resolveContentWidthVar returns null for 0 (full width)", () => {
   assert.equal(resolveContentWidthVar(0), null);
 });
 
-test("resolveContentWidthVar returns ch string for positive values", () => {
-  assert.equal(resolveContentWidthVar(60), "60ch");
-  assert.equal(resolveContentWidthVar(72), "72ch");
-  assert.equal(resolveContentWidthVar(80), "80ch");
-  assert.equal(resolveContentWidthVar(40), "40ch");
-  assert.equal(resolveContentWidthVar(50), "50ch");
+test("resolveContentWidthVar returns percentage string for positive values", () => {
+  assert.equal(resolveContentWidthVar(90), "90%");
+  assert.equal(resolveContentWidthVar(80), "80%");
+  assert.equal(resolveContentWidthVar(70), "70%");
+  assert.equal(resolveContentWidthVar(60), "60%");
+  assert.equal(resolveContentWidthVar(50), "50%");
 });
 
 test("resolveContentWidthVar returns null for negative values", () => {
