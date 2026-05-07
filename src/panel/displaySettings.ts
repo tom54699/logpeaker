@@ -11,5 +11,5 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
 };
 
 export function resolveContentWidthVar(contentWidth: number): string | null {
-  return contentWidth > 0 ? `${contentWidth}ch` : null;
+  return contentWidth > 0 ? `${contentWidth}%` : null;
 }
