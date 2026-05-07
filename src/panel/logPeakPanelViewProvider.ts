@@ -1261,8 +1261,8 @@ export class LogPeakPanelViewProvider implements vscode.WebviewViewProvider {
                 \`<option value="\${h}"\${ds.lineHeight === h ? " selected" : ""}>\${h}</option>\`
               ).join("");
               const lineHeightSelect = \`<select class="display-setting-select" data-action="set-line-height" aria-label="Line height">\${lineHeightOptions}</select>\`;
-              const contentWidths = [0, 90, 80, 70, 60, 50];
-              const contentWidthLabels = { 0: "full", 90: "90%", 80: "80%", 70: "70%", 60: "60%", 50: "50%" };
+              const contentWidths = [0, 120, 100, 80, 65, 50];
+              const contentWidthLabels = { 0: "full", 120: "120ch", 100: "100ch", 80: "80ch", 65: "65ch", 50: "50ch" };
               const contentWidthOptions = contentWidths.map(w =>
                 \`<option value="\${w}"\${(ds.contentWidth ?? 0) === w ? " selected" : ""}>\${contentWidthLabels[w]}</option>\`
               ).join("");

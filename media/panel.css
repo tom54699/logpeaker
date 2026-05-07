@@ -97,7 +97,7 @@ button {
   background: var(--vscode-editor-background);
 }
 
-.shell__rows:not(.shell__rows--boss) > .row {
+.shell__rows:not(.shell__rows--boss) > .row > .row__content {
   max-width: var(--lp-content-width, none);
 }
 
